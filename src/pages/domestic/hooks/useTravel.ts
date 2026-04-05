@@ -52,7 +52,7 @@ export function useTravel(mapId: string) {
     locationId: string,
     type: RecordType,
     content: string,
-    caption?: string,
+    _caption?: string,
     files?: File[],
     extraMapIds: string[] = [],
   ) => {
@@ -70,10 +70,24 @@ export function useTravel(mapId: string) {
       }));
     } else {
       if (!files || files.length === 0) return;
-      await addImagePost(mapIds, '', locationId, caption ?? '', files);
-      // アップロード後に storage_path 付きの最新データを再取得
-      const posts = await getPosts(mapId);
-      setData(buildTravelData(posts));
+      // content に画像のキャプションが入っている（caption 引数は unused）
+      const id = await addImagePost(mapIds, '', locationId, content, files);
+      // アップロード後に storage_path 付きの最新データを再取得（失敗してもオプティミスティックに表示）
+      try {
+        const posts = await getPosts(mapId);
+        setData(buildTravelData(posts));
+      } catch (fetchErr) {
+        console.error('投稿後の再取得に失敗:', fetchErr);
+        // 再取得失敗時は storage_path なしでとりあえず一覧に追加
+        const record: TravelRecord = {
+          id, type: 'image', content: '', caption: content || undefined,
+          createdAt: new Date().toISOString(), mapIds,
+        };
+        setData(prev => ({
+          ...prev,
+          [locationId]: [...(prev[locationId] ?? []), record],
+        }));
+      }
     }
   }, [mapId]);
 

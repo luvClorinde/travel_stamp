@@ -52,7 +52,7 @@ export function useWorldTravel(mapId: string) {
     countryId: string,
     type: RecordType,
     content: string,
-    caption?: string,
+    _caption?: string,
     files?: File[],
     extraMapIds: string[] = [],
   ) => {
@@ -69,9 +69,21 @@ export function useWorldTravel(mapId: string) {
       }));
     } else {
       if (!files || files.length === 0) return;
-      await addImagePost(mapIds, '', countryId, caption ?? '', files);
-      const posts = await getPosts(mapId);
-      setData(buildTravelData(posts));
+      const id = await addImagePost(mapIds, '', countryId, content, files);
+      try {
+        const posts = await getPosts(mapId);
+        setData(buildTravelData(posts));
+      } catch (fetchErr) {
+        console.error('投稿後の再取得に失敗:', fetchErr);
+        const record: TravelRecord = {
+          id, type: 'image', content: '', caption: content || undefined,
+          createdAt: new Date().toISOString(), mapIds,
+        };
+        setData(prev => ({
+          ...prev,
+          [countryId]: [...(prev[countryId] ?? []), record],
+        }));
+      }
     }
   }, [mapId]);
 

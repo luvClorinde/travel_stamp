@@ -26,17 +26,32 @@ export async function getPosts(mapId: string): Promise<DbPost[]> {
     user_id: string;
     location_id: string;
     body: string;
-    map_ids: string[];
-    photos: { id: string; storage_path: string }[];
-  }) => ({
-    id: row.id,
-    created_at: row.created_at,
-    user_id: row.user_id,
-    location_id: row.location_id,
-    body: row.body,
-    mapIds: row.map_ids ?? [],
-    photos: (row.photos ?? []).map(ph => ({ id: ph.id, storage_path: ph.storage_path })),
-  }));
+    map_ids: unknown;
+    photos: unknown;
+  }) => {
+    // Supabase RPC は jsonb を文字列で返すことがある → 安全にパース
+    const rawPhotos = typeof row.photos === 'string'
+      ? (JSON.parse(row.photos) as { id: string; storage_path: string }[])
+      : Array.isArray(row.photos)
+        ? (row.photos as { id: string; storage_path: string }[])
+        : [];
+
+    const rawMapIds = Array.isArray(row.map_ids)
+      ? (row.map_ids as string[])
+      : typeof row.map_ids === 'string'
+        ? (JSON.parse(row.map_ids) as string[])
+        : [];
+
+    return {
+      id: row.id,
+      created_at: row.created_at,
+      user_id: row.user_id,
+      location_id: row.location_id,
+      body: row.body,
+      mapIds: rawMapIds,
+      photos: rawPhotos.map(ph => ({ id: ph.id, storage_path: ph.storage_path })),
+    };
+  });
 }
 
 /** storage_path から signed URL を都度生成する（有効期限 1 時間） */
