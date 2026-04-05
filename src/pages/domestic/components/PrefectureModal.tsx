@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
-import type { TravelRecord, RecordType } from '../../../types';
-import type { MapMeta } from '../../../types';
-import { PhotoImage } from '../../../components/PhotoImage';
+import type { TravelRecord, RecordType, MapMeta } from '../../../types';
+import { PhotoGrid } from '../../../components/PhotoGrid';
+import { EditPostModal } from '../../../components/EditPostModal';
 
 interface PhotoEntry {
   file: File;
@@ -12,38 +12,36 @@ interface Props {
   prefectureName: string;
   records: TravelRecord[];
   currentMapId: string;
-  availableMaps: MapMeta[];   // 同タイプの地図一覧（現在の地図を含む）
+  currentUserId: string;
+  availableMaps: MapMeta[];
   onAdd: (type: RecordType, content: string, caption?: string, files?: File[], extraMapIds?: string[]) => Promise<void>;
   onDelete: (recordId: string) => void;
+  onReload: () => Promise<void>;
   onClose: () => void;
 }
 
 type Mode = 'list' | 'add-text' | 'add-image';
 
-function getStoragePaths(record: TravelRecord): string[] {
-  return record.photos ?? [];
-}
-
 export function PrefectureModal({
-  prefectureName, records, currentMapId, availableMaps, onAdd, onDelete, onClose,
+  prefectureName, records, currentMapId, currentUserId, availableMaps,
+  onAdd, onDelete, onReload, onClose,
 }: Props) {
   const [mode, setMode] = useState<Mode>('list');
   const [text, setText] = useState('');
   const [photoEntries, setPhotoEntries] = useState<PhotoEntry[]>([]);
   const [caption, setCaption] = useState('');
   const [saving, setSaving] = useState(false);
-  // 追加先マップ（現在のマップは常に含む）
   const [selectedMapIds, setSelectedMapIds] = useState<string[]>([currentMapId]);
+  const [editingRecord, setEditingRecord] = useState<TravelRecord | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // 追加フォームを開くとき現在のマップのみリセット
   function openAddForm(m: Mode) {
     setSelectedMapIds([currentMapId]);
     setMode(m);
   }
 
   function toggleMap(id: string) {
-    if (id === currentMapId) return; // 現在のマップは必ず含む
+    if (id === currentMapId) return;
     setSelectedMapIds(prev =>
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id],
     );
@@ -51,9 +49,8 @@ export function PrefectureModal({
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
-    if (files.length === 0) return;
-    const entries = files.map(f => ({ file: f, preview: URL.createObjectURL(f) }));
-    setPhotoEntries(prev => [...prev, ...entries]);
+    if (!files.length) return;
+    setPhotoEntries(prev => [...prev, ...files.map(f => ({ file: f, preview: URL.createObjectURL(f) }))]);
     e.target.value = '';
   }
 
@@ -100,201 +97,189 @@ export function PrefectureModal({
     }
   }
 
-  // 他マップにも紐づいている地図の名前一覧を返す
   function linkedMapNames(record: TravelRecord): string[] {
     return record.mapIds
       .filter(id => id !== currentMapId)
       .map(id => availableMaps.find(m => m.id === id)?.name ?? id);
   }
 
-  // 複数マップ選択 UI（現在のマップが2つ以上ある場合に表示）
   const extraMaps = availableMaps.filter(m => m.id !== currentMapId);
 
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={e => e.stopPropagation()}>
-
-        <div className="modal-header">
-          <h2 className="modal-title">{prefectureName}</h2>
-          <button className="close-btn" onClick={onClose} aria-label="閉じる">✕</button>
-        </div>
-
-        {mode === 'list' && (
-          <>
-            <div className="records-list">
-              {records.length === 0 ? (
-                <p className="empty-msg">まだ記録がありません。<br />思い出を追加してみましょう！</p>
-              ) : (
-                records.map(r => {
-                  const linked = linkedMapNames(r);
-                  return (
-                    <div key={r.id} className="record-item">
-                      <button
-                        className="record-delete"
-                        onClick={() => {
-                          const msg = linked.length > 0
-                            ? `この記録を「${availableMaps.find(m => m.id === currentMapId)?.name ?? '現在の地図'}」から外しますか？\n（他の地図「${linked.join('、')}」には残ります）`
-                            : 'この記録を削除しますか？';
-                          if (window.confirm(msg)) onDelete(r.id);
-                        }}
-                        aria-label="記録を削除"
-                      >✕ {linked.length > 0 ? 'この地図から外す' : '削除'}</button>
-
-                      {r.type === 'text' ? (
-                        <p className="record-text">{r.content}</p>
-                      ) : (
-                        <div className="record-photos">
-                          {getStoragePaths(r).map((path, i) => (
-                            <PhotoImage
-                              key={i}
-                              storagePath={path}
-                              alt={r.caption ?? `写真${i + 1}`}
-                              className="record-img"
-                            />
-                          ))}
-                          {r.caption && <p className="record-caption">{r.caption}</p>}
-                        </div>
-                      )}
-
-                      {linked.length > 0 && (
-                        <p className="record-linked-maps">
-                          他にも紐づく地図: {linked.join('、')}
-                        </p>
-                      )}
-
-                      <time className="record-date">
-                        {new Date(r.createdAt).toLocaleString('ja-JP', {
-                          year: 'numeric', month: 'long', day: 'numeric',
-                          hour: '2-digit', minute: '2-digit',
-                        })}
-                      </time>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => openAddForm('add-text')}>
-                📝 テキストを追加
-              </button>
-              <button className="btn btn-primary" onClick={() => openAddForm('add-image')}>
-                📷 写真を追加
-              </button>
-            </div>
-          </>
-        )}
-
-        {mode === 'add-text' && (
-          <div className="add-form">
-            <label className="form-label">思い出を書こう</label>
-            <textarea
-              className="form-textarea"
-              value={text}
-              onChange={e => setText(e.target.value)}
-              placeholder="旅の思い出、食べたもの、感想など…"
-              rows={5}
-              autoFocus
-            />
-
-            {extraMaps.length > 0 && (
-              <div className="map-multi-select">
-                <label className="form-label">追加する地図</label>
-                <div className="map-checkbox-list">
-                  <label className="map-checkbox-item map-checkbox-item--current">
-                    <input type="checkbox" checked disabled />
-                    <span>{availableMaps.find(m => m.id === currentMapId)?.name ?? '現在の地図'}</span>
-                    <span className="map-checkbox-badge">現在</span>
-                  </label>
-                  {extraMaps.map(m => (
-                    <label key={m.id} className="map-checkbox-item">
-                      <input
-                        type="checkbox"
-                        checked={selectedMapIds.includes(m.id)}
-                        onChange={() => toggleMap(m.id)}
-                      />
-                      <span>{m.name}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="form-actions">
-              <button className="btn btn-ghost" onClick={backToList} disabled={saving}>戻る</button>
-              <button className="btn btn-primary" onClick={handleAddText} disabled={!text.trim() || saving}>
-                {saving ? '保存中...' : '保存する'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {mode === 'add-image' && (
-          <div className="add-form">
+  // ─── マップ選択チェックボックス（共通） ───────────────────
+  const MapSelector = () => extraMaps.length > 0 ? (
+    <div className="map-multi-select">
+      <label className="form-label">追加する地図</label>
+      <div className="map-checkbox-list">
+        <label className="map-checkbox-item map-checkbox-item--current">
+          <input type="checkbox" checked disabled />
+          <span>{availableMaps.find(m => m.id === currentMapId)?.name ?? '現在の地図'}</span>
+          <span className="map-checkbox-badge">現在</span>
+        </label>
+        {extraMaps.map(m => (
+          <label key={m.id} className="map-checkbox-item">
             <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handleFileChange}
-              style={{ display: 'none' }}
+              type="checkbox"
+              checked={selectedMapIds.includes(m.id)}
+              onChange={() => toggleMap(m.id)}
             />
-            <button className="btn btn-upload" onClick={() => fileInputRef.current?.click()} disabled={saving}>
-              📁 写真を選択（複数可）
-            </button>
-
-            {photoEntries.length > 0 && (
-              <div className="preview-grid">
-                {photoEntries.map((entry, i) => (
-                  <div key={i} className="preview-item">
-                    <img src={entry.preview} alt={`プレビュー${i + 1}`} className="preview-thumb" />
-                    <button className="preview-remove" onClick={() => removePhoto(i)} aria-label="削除" disabled={saving}>✕</button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <label className="form-label">キャプション（任意）</label>
-            <input
-              className="form-input"
-              type="text"
-              value={caption}
-              onChange={e => setCaption(e.target.value)}
-              placeholder="写真の説明を入力…"
-            />
-
-            {extraMaps.length > 0 && (
-              <div className="map-multi-select">
-                <label className="form-label">追加する地図</label>
-                <div className="map-checkbox-list">
-                  <label className="map-checkbox-item map-checkbox-item--current">
-                    <input type="checkbox" checked disabled />
-                    <span>{availableMaps.find(m => m.id === currentMapId)?.name ?? '現在の地図'}</span>
-                    <span className="map-checkbox-badge">現在</span>
-                  </label>
-                  {extraMaps.map(m => (
-                    <label key={m.id} className="map-checkbox-item">
-                      <input
-                        type="checkbox"
-                        checked={selectedMapIds.includes(m.id)}
-                        onChange={() => toggleMap(m.id)}
-                      />
-                      <span>{m.name}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="form-actions">
-              <button className="btn btn-ghost" onClick={backToList} disabled={saving}>戻る</button>
-              <button className="btn btn-primary" onClick={handleAddImage} disabled={photoEntries.length === 0 || saving}>
-                {saving ? 'アップロード中...' : '保存する'}
-              </button>
-            </div>
-          </div>
-        )}
-
+            <span>{m.name}</span>
+          </label>
+        ))}
       </div>
     </div>
+  ) : null;
+
+  return (
+    <>
+      <div className="modal-overlay" onClick={onClose}>
+        <div className="modal-content" onClick={e => e.stopPropagation()}>
+
+          <div className="modal-header">
+            <h2 className="modal-title">{prefectureName}</h2>
+            <button className="close-btn" onClick={onClose} aria-label="閉じる">✕</button>
+          </div>
+
+          {mode === 'list' && (
+            <>
+              <div className="records-list">
+                {records.length === 0 ? (
+                  <p className="empty-msg">まだ記録がありません。<br />思い出を追加してみましょう！</p>
+                ) : (
+                  records.map(r => {
+                    const linked = linkedMapNames(r);
+                    const isOwner = r.authorId === currentUserId;
+                    return (
+                      <div key={r.id} className="record-item">
+                        <div className="record-actions">
+                          {isOwner && (
+                            <button
+                              className="btn-text-edit"
+                              onClick={() => setEditingRecord(r)}
+                            >
+                              編集
+                            </button>
+                          )}
+                          <button
+                            className="record-delete"
+                            onClick={() => {
+                              const msg = linked.length > 0
+                                ? `この記録を「${availableMaps.find(m => m.id === currentMapId)?.name ?? '現在の地図'}」から外しますか？\n（他の地図「${linked.join('、')}」には残ります）`
+                                : 'この記録を削除しますか？';
+                              if (window.confirm(msg)) onDelete(r.id);
+                            }}
+                            aria-label="記録を削除"
+                          >
+                            ✕ {linked.length > 0 ? 'この地図から外す' : '削除'}
+                          </button>
+                        </div>
+
+                        {r.type === 'text' ? (
+                          <p className="record-text">{r.content}</p>
+                        ) : (
+                          <PhotoGrid photos={r.photoDetails ?? []} caption={r.caption} />
+                        )}
+
+                        {linked.length > 0 && (
+                          <p className="record-linked-maps">他にも紐づく地図: {linked.join('、')}</p>
+                        )}
+
+                        <time className="record-date">
+                          {new Date(r.createdAt).toLocaleString('ja-JP', {
+                            year: 'numeric', month: 'long', day: 'numeric',
+                            hour: '2-digit', minute: '2-digit',
+                          })}
+                        </time>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+              <div className="modal-footer">
+                <button className="btn btn-secondary" onClick={() => openAddForm('add-text')}>
+                  📝 テキストを追加
+                </button>
+                <button className="btn btn-primary" onClick={() => openAddForm('add-image')}>
+                  📷 写真を追加
+                </button>
+              </div>
+            </>
+          )}
+
+          {mode === 'add-text' && (
+            <div className="add-form">
+              <label className="form-label">思い出を書こう</label>
+              <textarea
+                className="form-textarea"
+                value={text}
+                onChange={e => setText(e.target.value)}
+                placeholder="旅の思い出、食べたもの、感想など…"
+                rows={5}
+                autoFocus
+              />
+              <MapSelector />
+              <div className="form-actions">
+                <button className="btn btn-ghost" onClick={backToList} disabled={saving}>戻る</button>
+                <button className="btn btn-primary" onClick={handleAddText} disabled={!text.trim() || saving}>
+                  {saving ? '保存中...' : '保存する'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {mode === 'add-image' && (
+            <div className="add-form">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleFileChange}
+                style={{ display: 'none' }}
+              />
+              <button className="btn btn-upload" onClick={() => fileInputRef.current?.click()} disabled={saving}>
+                📁 写真を選択（複数可）
+              </button>
+              {photoEntries.length > 0 && (
+                <div className="preview-grid">
+                  {photoEntries.map((entry, i) => (
+                    <div key={i} className="preview-item">
+                      <img src={entry.preview} alt={`プレビュー${i + 1}`} className="preview-thumb" />
+                      <button className="preview-remove" onClick={() => removePhoto(i)} disabled={saving}>✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <label className="form-label">キャプション（任意）</label>
+              <input
+                className="form-input"
+                type="text"
+                value={caption}
+                onChange={e => setCaption(e.target.value)}
+                placeholder="写真の説明を入力…"
+              />
+              <MapSelector />
+              <div className="form-actions">
+                <button className="btn btn-ghost" onClick={backToList} disabled={saving}>戻る</button>
+                <button className="btn btn-primary" onClick={handleAddImage} disabled={photoEntries.length === 0 || saving}>
+                  {saving ? 'アップロード中...' : '保存する'}
+                </button>
+              </div>
+            </div>
+          )}
+
+        </div>
+      </div>
+
+      {/* 編集モーダル（作成者のみ表示） */}
+      {editingRecord && (
+        <EditPostModal
+          record={editingRecord}
+          availableMaps={availableMaps}
+          currentMapId={currentMapId}
+          onSave={onReload}
+          onClose={() => setEditingRecord(null)}
+        />
+      )}
+    </>
   );
 }

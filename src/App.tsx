@@ -3,15 +3,19 @@ import DomesticPage from './pages/domestic';
 import OverseasPage from './pages/overseas';
 import { MapList } from './pages/MapList';
 import { LoginPage } from './pages/LoginPage';
+import { AccountSettings } from './pages/AccountSettings';
 import { useAuth } from './hooks/useAuth';
+import { useProfile } from './hooks/useProfile';
 import { useMaps } from './hooks/useMaps';
 import type { MapMeta } from './types';
 import './App.css';
 
 export default function App() {
   const { user, loading: authLoading, signIn, signUp, signOut, deleteAccount } = useAuth();
+  const { username, updateUsername, updateEmail, updatePassword, refetchProfile } = useProfile(user?.id);
   const { maps, createMap, joinMap, deleteMap } = useMaps(user?.id ?? '');
   const [selectedMap, setSelectedMap] = useState<MapMeta | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
 
   if (authLoading) {
     return (
@@ -30,23 +34,36 @@ export default function App() {
   }
 
   if (!selectedMap) {
+    const displayName = username ?? user.email ?? '';
     return (
       <div className="app">
         <MapList
           maps={maps}
-          userEmail={user.email ?? ''}
+          displayName={displayName}
           onCreate={createMap}
           onJoin={(shareId) => joinMap(shareId)}
           onDelete={deleteMap}
           onSelect={setSelectedMap}
           onLogout={async () => { setSelectedMap(null); await signOut(); }}
-          onDeleteAccount={deleteAccount}
+          onOpenSettings={() => setShowSettings(true)}
         />
+        {showSettings && (
+          <AccountSettings
+            currentEmail={user.email ?? ''}
+            currentUsername={username ?? ''}
+            onUpdateUsername={async (name) => {
+              await updateUsername(name);
+            }}
+            onUpdateEmail={updateEmail}
+            onUpdatePassword={updatePassword}
+            onDeleteAccount={deleteAccount}
+            onClose={() => { setShowSettings(false); refetchProfile(); }}
+          />
+        )}
       </div>
     );
   }
 
-  // 現在の地図と同タイプの地図一覧（複数マップ選択UIに使用）
   const sameTypeMaps = maps.filter(m => m.type === selectedMap.type);
 
   return (
@@ -55,6 +72,7 @@ export default function App() {
         <DomesticPage
           mapId={selectedMap.id}
           mapName={selectedMap.name}
+          currentUserId={user.id}
           availableMaps={sameTypeMaps}
           onBack={() => setSelectedMap(null)}
         />
@@ -62,6 +80,7 @@ export default function App() {
         <OverseasPage
           mapId={selectedMap.id}
           mapName={selectedMap.name}
+          currentUserId={user.id}
           availableMaps={sameTypeMaps}
           onBack={() => setSelectedMap(null)}
         />

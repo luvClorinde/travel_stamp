@@ -59,6 +59,78 @@ export function useZoomPan({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // タッチ操作（シングル＝パン、2本指＝ピンチズーム）
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+
+    let lastDist = 0;
+    let singleTouch = false;
+    let startX = 0, startY = 0, startTx = 0, startTy = 0;
+
+    const onTouchStart = (e: TouchEvent) => {
+      e.preventDefault();
+      if (e.touches.length === 2) {
+        singleTouch = false;
+        const t0 = e.touches[0], t1 = e.touches[1];
+        lastDist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+      } else if (e.touches.length === 1) {
+        singleTouch = true;
+        didDragRef.current = false;
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+        startTx = txRef.current;
+        startTy = tyRef.current;
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      e.preventDefault();
+      if (e.touches.length === 2) {
+        const t0 = e.touches[0], t1 = e.touches[1];
+        const dist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+        const midX = (t0.clientX + t1.clientX) / 2;
+        const midY = (t0.clientY + t1.clientY) / 2;
+        if (lastDist > 0) {
+          const factor = dist / lastDist;
+          const newScale = Math.min(maxScale, Math.max(minScale, scaleRef.current * factor));
+          const rect = el.getBoundingClientRect();
+          const cx = ((midX - rect.left) / rect.width) * W;
+          const cy = ((midY - rect.top) / rect.height) * H;
+          const ratio = newScale / scaleRef.current;
+          applyTransform(
+            cx - (cx - txRef.current) * ratio,
+            cy - (cy - tyRef.current) * ratio,
+            newScale,
+          );
+        }
+        lastDist = dist;
+      } else if (e.touches.length === 1 && singleTouch) {
+        const rect = el.getBoundingClientRect();
+        const dx = ((e.touches[0].clientX - startX) / rect.width) * W;
+        const dy = ((e.touches[0].clientY - startY) / rect.height) * H;
+        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didDragRef.current = true;
+        applyTransform(startTx + dx, startTy + dy, scaleRef.current);
+      }
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      e.preventDefault();
+      if (e.touches.length < 2) lastDist = 0;
+      if (e.touches.length === 0) singleTouch = false;
+    };
+
+    el.addEventListener('touchstart', onTouchStart, { passive: false });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd, { passive: false });
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', onTouchEnd);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ドラッグパン
   useEffect(() => {
     const el = wrapperRef.current;

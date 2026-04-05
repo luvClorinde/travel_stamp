@@ -111,13 +111,38 @@
 .modal-content {
   background: #ffffff;
   border-radius: 20px;
-  width: 100%;
-  max-width: 480px;
+  /* < 640px: 小画面は貼り付き */
+  width: 95vw;
   max-height: 88vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.25);
+}
+
+/* sm  ≥ 640px  → 512px  (640 × 0.80) */
+@media (min-width: 640px) {
+  .modal-content { width: 512px; }
+}
+
+/* md  ≥ 768px  → 538px  (768 × 0.70) */
+@media (min-width: 768px) {
+  .modal-content { width: 538px; }
+}
+
+/* lg  ≥ 1024px → 717px  (1024 × 0.70) */
+@media (min-width: 1024px) {
+  .modal-content { width: 717px; }
+}
+
+/* xl  ≥ 1280px → 896px  (1280 × 0.70) */
+@media (min-width: 1280px) {
+  .modal-content { width: 896px; }
+}
+
+/* 2xl ≥ 1536px → 1075px (1536 × 0.70) */
+@media (min-width: 1536px) {
+  .modal-content { width: 1075px; }
 }
 
 .modal-header {
@@ -184,16 +209,22 @@
   white-space: pre-wrap;
 }
 
-/* 複数画像グリッド */
+/* 複数画像グリッド — 常に2列、xl以上は3列 */
 .record-photos {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 6px;
+}
+
+@media (min-width: 1280px) {
+  .record-photos {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
 }
 
 .record-img {
   width: 100%;
-  max-height: 200px;
+  aspect-ratio: 4 / 3;
   object-fit: cover;
   border-radius: 8px;
   display: block;
@@ -271,6 +302,14 @@
 }
 
 .btn-ghost:hover { background: #E2E8F0; }
+
+.btn-danger {
+  background: #FEF2F2;
+  color: #EF4444;
+  border: 1px solid #FECACA;
+}
+
+.btn-danger:hover { background: #FEE2E2; }
 
 .btn-upload {
   width: 100%;
@@ -454,4 +493,144 @@
   padding: 4px 8px;
   background: #F1F5F9;
   border-radius: 6px;
+}
+
+/* ── 投稿アクションバー（編集・削除ボタン） ─────────────── */
+.record-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.btn-text-edit {
+  background: none;
+  border: none;
+  color: #2563EB;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.btn-text-edit:hover {
+  background: #EFF6FF;
+}
+
+.btn-text-danger {
+  background: none;
+  border: none;
+  color: #EF4444;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.btn-text-danger:hover {
+  background: #FEF2F2;
+}
+
+/* ── 編集モーダル（z-index を通常モーダルより上に） ──────── */
+.edit-overlay {
+  z-index: 300;
+}
+
+.edit-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.edit-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* 編集モーダル内の写真一覧 */
+.edit-photo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.edit-photo-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.edit-photo-thumb {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.edit-photo-meta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  justify-content: center;
+}
+
+/* ── 「すべて見る」ボタン ─────────────────────────────── */
+.btn-show-all {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 8px 12px;
+  background: #F1F5F9;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #2563EB;
+  cursor: pointer;
+  text-align: center;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.btn-show-all:hover { background: #EFF6FF; border-color: #BFDBFE; }
+
+/* ── 全写真ギャラリーモーダル ────────────────────────── */
+.photo-gallery-overlay {
+  z-index: 400;
+}
+
+.photo-gallery-content {
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+}
+
+.photo-gallery-grid {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 24px 24px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+@media (min-width: 1280px) {
+  .photo-gallery-grid {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
 }

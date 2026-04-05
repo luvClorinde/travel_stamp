@@ -8,12 +8,13 @@ import './domestic.css';
 interface Props {
   mapId: string;
   mapName: string;
-  availableMaps: MapMeta[];  // 同タイプ（domestic）の地図一覧
+  currentUserId: string;
+  availableMaps: MapMeta[];
   onBack: () => void;
 }
 
-export default function DomesticPage({ mapId, mapName, availableMaps, onBack }: Props) {
-  const { addRecord, deleteRecord, getRecords, isVisited, visitedCount, loading, loadError } = useTravel(mapId);
+export default function DomesticPage({ mapId, mapName, currentUserId, availableMaps, onBack }: Props) {
+  const { addRecord, deleteRecord, getRecords, isVisited, visitedCount, loading, loadError, reloadPosts } = useTravel(mapId);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const selectedName = selectedId ? (japaneseNames[selectedId] ?? selectedId) : null;
@@ -50,11 +51,13 @@ export default function DomesticPage({ mapId, mapName, availableMaps, onBack }: 
           prefectureName={selectedName}
           records={getRecords(selectedId)}
           currentMapId={mapId}
+          currentUserId={currentUserId}
           availableMaps={availableMaps}
           onAdd={(type, content, caption, files, extraMapIds) =>
             addRecord(selectedId, type, content, caption, files, extraMapIds)
           }
           onDelete={(recordId) => deleteRecord(selectedId, recordId)}
+          onReload={reloadPosts}
           onClose={() => setSelectedId(null)}
         />
       )}

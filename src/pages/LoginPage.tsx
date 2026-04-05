@@ -4,7 +4,7 @@ type AuthMode = 'sign-in' | 'sign-up';
 
 interface Props {
   onSignIn: (email: string, password: string) => Promise<void>;
-  onSignUp: (email: string, password: string) => Promise<void>;
+  onSignUp: (email: string, password: string, username: string) => Promise<void>;
 }
 
 export function LoginPage({ onSignIn, onSignUp }: Props) {
@@ -12,6 +12,7 @@ export function LoginPage({ onSignIn, onSignUp }: Props) {
   const [email, setEmail] = useState('');
   const [emailConfirm, setEmailConfirm] = useState('');
   const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
@@ -21,6 +22,7 @@ export function LoginPage({ onSignIn, onSignUp }: Props) {
     setEmail('');
     setEmailConfirm('');
     setPassword('');
+    setUsername('');
     setError('');
     setSuccess('');
   }
@@ -40,8 +42,11 @@ export function LoginPage({ onSignIn, onSignUp }: Props) {
     setError('');
     setSuccess('');
 
-    // サインアップ時のメールアドレス一致チェック（Supabase に送る前に検証）
     if (mode === 'sign-up') {
+      if (!username.trim()) {
+        setError('ユーザー名を入力してください。');
+        return;
+      }
       if (email.trim() !== emailConfirm.trim()) {
         setError('メールアドレスが一致していません。もう一度確認してください。');
         return;
@@ -53,22 +58,18 @@ export function LoginPage({ onSignIn, onSignUp }: Props) {
       if (mode === 'sign-in') {
         await onSignIn(email.trim(), password);
       } else {
-        await onSignUp(email.trim(), password);
-        // サインアップ成功：入力をリセットして成功メッセージを表示し、ログイン画面へ戻す
+        await onSignUp(email.trim(), password, username.trim());
         setEmail('');
         setEmailConfirm('');
         setPassword('');
+        setUsername('');
         setSuccess('アカウントを作成しました。そのままログインしてください。');
         setMode('sign-in');
       }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : '';
       if (mode === 'sign-up') {
-        if (
-          msg.includes('User already registered') ||
-          msg.includes('already been registered') ||
-          msg.includes('already registered')
-        ) {
+        if (msg.includes('User already registered') || msg.includes('already been registered') || msg.includes('already registered')) {
           setError('このメールアドレスはすでに登録されています。ログインしてください。');
         } else if (msg.includes('Password should be at least')) {
           setError('パスワードは6文字以上で入力してください。');
@@ -94,7 +95,7 @@ export function LoginPage({ onSignIn, onSignUp }: Props) {
   const canSubmit =
     mode === 'sign-in'
       ? email.trim() !== '' && password !== '' && !loading
-      : email.trim() !== '' && emailConfirm.trim() !== '' && password !== '' && !loading;
+      : email.trim() !== '' && emailConfirm.trim() !== '' && password !== '' && username.trim() !== '' && !loading;
 
   return (
     <div className="login-page">
@@ -104,33 +105,37 @@ export function LoginPage({ onSignIn, onSignUp }: Props) {
           {mode === 'sign-in' ? 'ログインして旅を記録しよう' : '新しいアカウントを作成'}
         </p>
 
-        {/* 成功メッセージ */}
         {success && (
           <p style={{
-            fontSize: 13,
-            color: '#16a34a',
-            background: '#f0fdf4',
-            border: '1px solid #bbf7d0',
-            borderRadius: 8,
-            padding: '10px 14px',
-            margin: 0,
-            textAlign: 'center',
+            fontSize: 13, color: '#16a34a', background: '#f0fdf4',
+            border: '1px solid #bbf7d0', borderRadius: 8, padding: '10px 14px',
+            margin: 0, textAlign: 'center',
           }}>
             {success}
           </p>
         )}
 
         <div className="login-form">
+          {mode === 'sign-up' && (
+            <input
+              className="form-input"
+              type="text"
+              placeholder="ユーザー名"
+              value={username}
+              onChange={e => { setUsername(e.target.value); setError(''); }}
+              autoFocus
+            />
+          )}
+
           <input
             className="form-input"
             type="email"
             placeholder="メールアドレス"
             value={email}
             onChange={e => { setEmail(e.target.value); setError(''); }}
-            autoFocus
+            autoFocus={mode === 'sign-in'}
           />
 
-          {/* サインアップ時のみ確認用メールアドレスを表示 */}
           {mode === 'sign-up' && (
             <input
               className="form-input"

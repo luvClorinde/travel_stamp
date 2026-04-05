@@ -4,11 +4,19 @@
   padding: 0;
 }
 
+html {
+  height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 body {
   font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Meiryo', 'Yu Gothic', sans-serif;
   background: #F1F5F9;
   color: #1E293B;
-  min-height: 100dvh;
+  height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: none;
   -webkit-font-smoothing: antialiased;
   display: flex;
   justify-content: center;
@@ -17,7 +25,8 @@ body {
 
 #root {
   width: 100%;
-  min-height: 100dvh;
+  height: 100dvh;
+  overflow: hidden;
   display: flex;
   justify-content: center;
   align-items: center;

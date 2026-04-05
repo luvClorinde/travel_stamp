@@ -8,9 +8,10 @@ export interface DbPhoto {
 export interface DbPost {
   id: string;
   created_at: string;
+  author_id: string;
   location_id: string;
   body: string;
-  mapIds: string[];   // 紐づくマップID一覧（post_maps 経由）
+  mapIds: string[];
   photos: DbPhoto[];
 }
 
@@ -22,12 +23,12 @@ export async function getPosts(mapId: string): Promise<DbPost[]> {
   return (data ?? []).map((row: {
     id: string;
     created_at: string;
+    author_id: unknown;
     location_id: string;
     body: string;
     map_ids: unknown;
     photos: unknown;
   }) => {
-    // Supabase RPC は jsonb を文字列で返すことがある → 安全にパース
     const rawPhotos = typeof row.photos === 'string'
       ? (JSON.parse(row.photos) as { id: string; storage_path: string }[])
       : Array.isArray(row.photos)
@@ -43,6 +44,7 @@ export async function getPosts(mapId: string): Promise<DbPost[]> {
     return {
       id: row.id,
       created_at: row.created_at,
+      author_id: typeof row.author_id === 'string' ? row.author_id : '',
       location_id: row.location_id,
       body: row.body,
       mapIds: rawMapIds,
@@ -59,10 +61,7 @@ export async function getSignedUrl(storagePath: string): Promise<string | null> 
   return data?.signedUrl ?? null;
 }
 
-/**
- * テキスト投稿を複数マップに作成し、生成した post.id を返す。
- * create_post_with_maps RPC（SECURITY DEFINER）を使用。
- */
+/** テキスト投稿を複数マップに作成し、生成した post.id を返す */
 export async function addTextPost(
   mapIds: string[],
   _userId: string,
@@ -80,10 +79,7 @@ export async function addTextPost(
   return postId;
 }
 
-/**
- * 画像投稿を複数マップに作成（post → storage upload → post_photos）。
- * 生成した post.id を返す。
- */
+/** 画像投稿を複数マップに作成（post → storage upload → post_photos）*/
 export async function addImagePost(
   mapIds: string[],
   _userId: string,
@@ -93,7 +89,6 @@ export async function addImagePost(
 ): Promise<string> {
   const postId = crypto.randomUUID();
 
-  // 1. posts + post_maps を SECURITY DEFINER 関数で作成
   const { error: postError } = await supabase.rpc('create_post_with_maps', {
     p_post_id:    postId,
     p_location_id: locationId,
@@ -102,7 +97,6 @@ export async function addImagePost(
   });
   if (postError) throw postError;
 
-  // 2. 各画像を storage にアップロード
   const photoInserts: { post_id: string; storage_path: string }[] = [];
   for (const file of files) {
     const filename = `${Date.now()}_${Math.random().toString(36).slice(2)}_${file.name}`;
@@ -114,7 +108,6 @@ export async function addImagePost(
     photoInserts.push({ post_id: postId, storage_path: storagePath });
   }
 
-  // 3. post_photos に insert
   if (photoInserts.length > 0) {
     const { error: photosError } = await supabase.from('post_photos').insert(photoInserts);
     if (photosError) throw photosError;
@@ -123,13 +116,7 @@ export async function addImagePost(
   return postId;
 }
 
-/**
- * 特定のマップから投稿を外す。
- * 他のマップにも紐づいていない場合は投稿本体ごと削除し、
- * storage から画像を削除するためのパスを返す（フロントで削除する）。
- *
- * 戻り値: 削除した storage_path の配列（孤立しなかった場合は空配列）
- */
+/** 特定のマップから投稿を外す。孤立した場合は投稿本体ごと削除 */
 export async function removePostFromMap(postId: string, mapId: string): Promise<string[]> {
   const { data, error } = await supabase.rpc('remove_post_from_map', {
     p_post_id: postId,
@@ -138,11 +125,65 @@ export async function removePostFromMap(postId: string, mapId: string): Promise<
   if (error) throw error;
 
   const paths = (data ?? []) as string[];
-
-  // 孤立して投稿本体が削除された場合、storage の画像も削除する
   if (paths.length > 0) {
     await supabase.storage.from('images').remove(paths);
   }
-
   return paths;
+}
+
+// ─── 編集系 API ────────────────────────────────────────────
+
+/** 投稿本文を更新（作成者のみ） */
+export async function updatePostBody(postId: string, body: string): Promise<void> {
+  const { error } = await supabase.rpc('update_post_body', {
+    p_post_id: postId,
+    p_body:    body,
+  });
+  if (error) throw error;
+}
+
+/** 写真を削除（DB から削除し storage_path を返す → Storage も削除） */
+export async function deletePhoto(photoId: string): Promise<void> {
+  const { data, error } = await supabase.rpc('delete_photo_from_post', {
+    p_photo_id: photoId,
+  });
+  if (error) throw error;
+  const storagePath = data as string | null;
+  if (storagePath) {
+    await supabase.storage.from('images').remove([storagePath]);
+  }
+}
+
+/** 既存の post に画像を追加 */
+export async function addPhotosToPost(postId: string, files: File[]): Promise<void> {
+  const inserts: { post_id: string; storage_path: string }[] = [];
+  for (const file of files) {
+    const filename = `${Date.now()}_${Math.random().toString(36).slice(2)}_${file.name}`;
+    const storagePath = `${postId}/${filename}`;
+    const { error } = await supabase.storage.from('images').upload(storagePath, file);
+    if (error) throw error;
+    inserts.push({ post_id: postId, storage_path: storagePath });
+  }
+  if (inserts.length > 0) {
+    const { error } = await supabase.from('post_photos').insert(inserts);
+    if (error) throw error;
+  }
+}
+
+/** 写真のキャプションを更新 */
+export async function updatePhotoCaption(photoId: string, caption: string): Promise<void> {
+  const { error } = await supabase.rpc('update_photo_caption', {
+    p_photo_id: photoId,
+    p_caption:  caption,
+  });
+  if (error) throw error;
+}
+
+/** 投稿の紐づきマップを更新（最低1件必須） */
+export async function updatePostMaps(postId: string, mapIds: string[]): Promise<void> {
+  const { error } = await supabase.rpc('update_post_maps', {
+    p_post_id: postId,
+    p_map_ids: mapIds,
+  });
+  if (error) throw error;
 }

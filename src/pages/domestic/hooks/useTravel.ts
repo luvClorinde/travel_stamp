@@ -10,9 +10,12 @@ function dbPostToRecord(post: DbPost): TravelRecord {
     type: hasPhotos ? 'image' : 'text',
     content: hasPhotos ? '' : post.body,
     caption: hasPhotos ? (post.body || undefined) : undefined,
-    photos: hasPhotos ? post.photos.map(p => p.storage_path) : undefined,
+    photoDetails: hasPhotos
+      ? post.photos.map(p => ({ id: p.id, storagePath: p.storage_path }))
+      : undefined,
     createdAt: post.created_at,
     mapIds: post.mapIds,
+    authorId: post.author_id,
   };
 }
 
@@ -31,26 +34,29 @@ export function useTravel(mapId: string) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  const fetchPosts = useCallback(async () => {
+    if (!mapId) return;
+    const posts = await getPosts(mapId);
+    setData(buildTravelData(posts));
+  }, [mapId]);
+
   useEffect(() => {
     if (!mapId) return;
     setLoading(true);
     setLoadError(null);
-    getPosts(mapId)
-      .then(posts => {
-        setData(buildTravelData(posts));
-        setLoading(false);
-      })
+    fetchPosts()
+      .then(() => setLoading(false))
       .catch(err => {
         console.error('useTravel load error:', err);
         setLoadError(err?.message ?? String(err));
         setLoading(false);
       });
-  }, [mapId]);
+  }, [mapId, fetchPosts]);
 
-  /**
-   * 投稿を追加する。
-   * @param extraMapIds 現在のマップ以外にも紐づけるマップIDの配列（省略時は現在のマップのみ）
-   */
+  const reloadPosts = useCallback(async () => {
+    try { await fetchPosts(); } catch (err) { console.error('reload error:', err); }
+  }, [fetchPosts]);
+
   const addRecord = useCallback(async (
     locationId: string,
     type: RecordType,
@@ -59,55 +65,43 @@ export function useTravel(mapId: string) {
     files?: File[],
     extraMapIds: string[] = [],
   ) => {
-    // 重複を除いたマップID一覧（現在のマップを先頭に）
     const mapIds = [mapId, ...extraMapIds.filter(id => id !== mapId)];
 
     if (type === 'text') {
       const id = await addTextPost(mapIds, '', locationId, content);
       const record: TravelRecord = {
-        id, type: 'text', content, createdAt: new Date().toISOString(), mapIds,
+        id, type: 'text', content, createdAt: new Date().toISOString(), mapIds, authorId: '',
       };
       setData(prev => ({
         ...prev,
-        [locationId]: [...(prev[locationId] ?? []), record],
+        [locationId]: [record, ...(prev[locationId] ?? [])],
       }));
     } else {
       if (!files || files.length === 0) return;
-      // content に画像のキャプションが入っている（caption 引数は unused）
-      const id = await addImagePost(mapIds, '', locationId, content, files);
-      // アップロード後に storage_path 付きの最新データを再取得（失敗してもオプティミスティックに表示）
+      await addImagePost(mapIds, '', locationId, content, files);
       try {
-        const posts = await getPosts(mapId);
-        setData(buildTravelData(posts));
+        await fetchPosts();
       } catch (fetchErr) {
         console.error('投稿後の再取得に失敗:', fetchErr);
-        // 再取得失敗時は storage_path なしでとりあえず一覧に追加
         const record: TravelRecord = {
-          id, type: 'image', content: '', caption: content || undefined,
-          createdAt: new Date().toISOString(), mapIds,
+          id: crypto.randomUUID(), type: 'image', content: '',
+          caption: content || undefined, createdAt: new Date().toISOString(), mapIds, authorId: '',
         };
         setData(prev => ({
           ...prev,
-          [locationId]: [...(prev[locationId] ?? []), record],
+          [locationId]: [record, ...(prev[locationId] ?? [])],
         }));
       }
     }
-  }, [mapId]);
+  }, [mapId, fetchPosts]);
 
-  /**
-   * 現在のマップから投稿を外す。
-   * 他マップにも紐づいていない場合は投稿本体ごと削除。
-   */
   const deleteRecord = useCallback(async (locationId: string, recordId: string) => {
     await removePostFromMap(recordId, mapId);
     setData(prev => {
       const filtered = (prev[locationId] ?? []).filter(r => r.id !== recordId);
       const next = { ...prev };
-      if (filtered.length === 0) {
-        delete next[locationId];
-      } else {
-        next[locationId] = filtered;
-      }
+      if (filtered.length === 0) delete next[locationId];
+      else next[locationId] = filtered;
       return next;
     });
   }, [mapId]);
@@ -122,5 +116,5 @@ export function useTravel(mapId: string) {
 
   const visitedCount = Object.values(data).filter(r => r.length > 0).length;
 
-  return { addRecord, deleteRecord, getRecords, isVisited, visitedCount, loading, loadError };
+  return { addRecord, deleteRecord, getRecords, isVisited, visitedCount, loading, loadError, reloadPosts };
 }

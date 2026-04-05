@@ -9,12 +9,13 @@ import './overseas.css';
 interface Props {
   mapId: string;
   mapName: string;
-  availableMaps: MapMeta[];  // 同タイプ（international）の地図一覧
+  currentUserId: string;
+  availableMaps: MapMeta[];
   onBack: () => void;
 }
 
-export default function OverseasPage({ mapId, mapName, availableMaps, onBack }: Props) {
-  const { addRecord, deleteRecord, getRecords, isVisited, visitedCount, loading, loadError } = useWorldTravel(mapId);
+export default function OverseasPage({ mapId, mapName, currentUserId, availableMaps, onBack }: Props) {
+  const { addRecord, deleteRecord, getRecords, isVisited, visitedCount, loading, loadError, reloadPosts } = useWorldTravel(mapId);
   const [selected, setSelected] = useState<{ id: string; name: string } | null>(null);
 
   return (
@@ -48,11 +49,13 @@ export default function OverseasPage({ mapId, mapName, availableMaps, onBack }: 
           countryName={selected.name}
           records={getRecords(selected.id)}
           currentMapId={mapId}
+          currentUserId={currentUserId}
           availableMaps={availableMaps}
           onAdd={(countryId, type, content, caption, files, extraMapIds) =>
             addRecord(countryId, type, content, caption, files, extraMapIds)
           }
           onDelete={(recordId) => deleteRecord(selected.id, recordId)}
+          onReload={reloadPosts}
           onClose={() => setSelected(null)}
         />
       )}

@@ -8,14 +8,20 @@ export interface MapMeta {
   createdAt: string;
 }
 
+export interface PhotoDetail {
+  id: string;
+  storagePath: string;
+}
+
 export interface TravelRecord {
   id: string;
   type: RecordType;
-  content: string;     // テキスト投稿の本文、画像投稿では空文字
-  caption?: string;    // 画像投稿のキャプション
-  photos?: string[];   // 画像投稿の storage_path 一覧（表示時に signed URL を生成する）
+  content: string;      // テキスト投稿の本文（画像投稿では空文字）
+  caption?: string;     // 画像投稿のキャプション（= posts.body）
+  photoDetails?: PhotoDetail[];  // 画像一覧（表示・編集に使用）
   createdAt: string;
-  mapIds: string[];    // この投稿が紐づくマップID一覧
+  mapIds: string[];
+  authorId: string;     // 投稿作成者の user_id
 }
 
 export interface TravelData {
