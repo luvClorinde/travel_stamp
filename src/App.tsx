@@ -46,18 +46,23 @@ export default function App() {
     );
   }
 
+  // 現在の地図と同タイプの地図一覧（複数マップ選択UIに使用）
+  const sameTypeMaps = maps.filter(m => m.type === selectedMap.type);
+
   return (
     <div className="app">
       {selectedMap.type === 'domestic' ? (
         <DomesticPage
           mapId={selectedMap.id}
           mapName={selectedMap.name}
+          availableMaps={sameTypeMaps}
           onBack={() => setSelectedMap(null)}
         />
       ) : (
         <OverseasPage
           mapId={selectedMap.id}
           mapName={selectedMap.name}
+          availableMaps={sameTypeMaps}
           onBack={() => setSelectedMap(null)}
         />
       )}

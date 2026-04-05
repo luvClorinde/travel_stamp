@@ -53,7 +53,7 @@ export async function getSignedUrl(storagePath: string): Promise<string | null> 
  */
 export async function addTextPost(
   mapIds: string[],
-  userId: string,
+  _userId: string,
   locationId: string,
   body: string,
 ): Promise<string> {
@@ -74,7 +74,7 @@ export async function addTextPost(
  */
 export async function addImagePost(
   mapIds: string[],
-  userId: string,
+  _userId: string,
   locationId: string,
   caption: string,
   files: File[],

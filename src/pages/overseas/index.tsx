@@ -2,16 +2,18 @@ import { useState } from 'react';
 import { WorldMap } from './components/WorldMap';
 import { CountryModal } from './components/CountryModal';
 import { useWorldTravel } from './hooks/useWorldTravel';
+import type { MapMeta } from '../../types';
 import '../domestic/domestic.css';
 import './overseas.css';
 
 interface Props {
   mapId: string;
   mapName: string;
+  availableMaps: MapMeta[];  // 同タイプ（international）の地図一覧
   onBack: () => void;
 }
 
-export default function OverseasPage({ mapId, mapName, onBack }: Props) {
+export default function OverseasPage({ mapId, mapName, availableMaps, onBack }: Props) {
   const { addRecord, deleteRecord, getRecords, isVisited, visitedCount, loading } = useWorldTravel(mapId);
   const [selected, setSelected] = useState<{ id: string; name: string } | null>(null);
 
@@ -40,7 +42,11 @@ export default function OverseasPage({ mapId, mapName, onBack }: Props) {
           countryId={selected.id}
           countryName={selected.name}
           records={getRecords(selected.id)}
-          onAdd={addRecord}
+          currentMapId={mapId}
+          availableMaps={availableMaps}
+          onAdd={(countryId, type, content, caption, files, extraMapIds) =>
+            addRecord(countryId, type, content, caption, files, extraMapIds)
+          }
           onDelete={(recordId) => deleteRecord(selected.id, recordId)}
           onClose={() => setSelected(null)}
         />

@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import type { TravelRecord, RecordType } from '../../../types';
+import type { TravelRecord, RecordType, MapMeta } from '../../../types';
 import { PhotoImage } from '../../../components/PhotoImage';
 
 interface PhotoEntry {
@@ -11,26 +11,41 @@ interface Props {
   countryName: string;
   countryId: string;
   records: TravelRecord[];
-  onAdd: (countryId: string, type: RecordType, content: string, caption?: string, files?: File[]) => Promise<void>;
+  currentMapId: string;
+  availableMaps: MapMeta[];  // 同タイプの地図一覧（現在の地図を含む）
+  onAdd: (countryId: string, type: RecordType, content: string, caption?: string, files?: File[], extraMapIds?: string[]) => Promise<void>;
   onDelete: (recordId: string) => void;
   onClose: () => void;
 }
 
 type Mode = 'list' | 'add-text' | 'add-image';
 
-/** photos フィールドから storage_path 一覧を取得 */
 function getStoragePaths(record: TravelRecord): string[] {
-  if (record.photos && record.photos.length > 0) return record.photos;
-  return [];
+  return record.photos ?? [];
 }
 
-export function CountryModal({ countryName, countryId, records, onAdd, onDelete, onClose }: Props) {
+export function CountryModal({
+  countryName, countryId, records, currentMapId, availableMaps, onAdd, onDelete, onClose,
+}: Props) {
   const [mode, setMode] = useState<Mode>('list');
   const [text, setText] = useState('');
   const [photoEntries, setPhotoEntries] = useState<PhotoEntry[]>([]);
   const [caption, setCaption] = useState('');
   const [saving, setSaving] = useState(false);
+  const [selectedMapIds, setSelectedMapIds] = useState<string[]>([currentMapId]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function openAddForm(m: Mode) {
+    setSelectedMapIds([currentMapId]);
+    setMode(m);
+  }
+
+  function toggleMap(id: string) {
+    if (id === currentMapId) return;
+    setSelectedMapIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id],
+    );
+  }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
@@ -59,7 +74,8 @@ export function CountryModal({ countryName, countryId, records, onAdd, onDelete,
     if (!text.trim()) return;
     setSaving(true);
     try {
-      await onAdd(countryId, 'text', text.trim());
+      const extra = selectedMapIds.filter(id => id !== currentMapId);
+      await onAdd(countryId, 'text', text.trim(), undefined, undefined, extra);
       setText('');
       setMode('list');
     } finally {
@@ -71,7 +87,8 @@ export function CountryModal({ countryName, countryId, records, onAdd, onDelete,
     if (photoEntries.length === 0) return;
     setSaving(true);
     try {
-      await onAdd(countryId, 'image', caption.trim(), undefined, photoEntries.map(e => e.file));
+      const extra = selectedMapIds.filter(id => id !== currentMapId);
+      await onAdd(countryId, 'image', caption.trim(), undefined, photoEntries.map(e => e.file), extra);
       photoEntries.forEach(e => URL.revokeObjectURL(e.preview));
       setPhotoEntries([]);
       setCaption('');
@@ -80,6 +97,14 @@ export function CountryModal({ countryName, countryId, records, onAdd, onDelete,
       setSaving(false);
     }
   }
+
+  function linkedMapNames(record: TravelRecord): string[] {
+    return record.mapIds
+      .filter(id => id !== currentMapId)
+      .map(id => availableMaps.find(m => m.id === id)?.name ?? id);
+  }
+
+  const extraMaps = availableMaps.filter(m => m.id !== currentMapId);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -96,43 +121,59 @@ export function CountryModal({ countryName, countryId, records, onAdd, onDelete,
               {records.length === 0 ? (
                 <p className="empty-msg">まだ記録がありません。<br />思い出を追加してみましょう！</p>
               ) : (
-                records.map(r => (
-                  <div key={r.id} className="record-item">
-                    <button
-                      className="record-delete"
-                      onClick={() => { if (window.confirm('この記録を削除しますか？')) onDelete(r.id); }}
-                      aria-label="記録を削除"
-                    >✕ 削除</button>
-                    {r.type === 'text' ? (
-                      <p className="record-text">{r.content}</p>
-                    ) : (
-                      <div className="record-photos">
-                        {getStoragePaths(r).map((path, i) => (
-                          <PhotoImage
-                            key={i}
-                            storagePath={path}
-                            alt={r.caption ?? `写真${i + 1}`}
-                            className="record-img"
-                          />
-                        ))}
-                        {r.caption && <p className="record-caption">{r.caption}</p>}
-                      </div>
-                    )}
-                    <time className="record-date">
-                      {new Date(r.createdAt).toLocaleString('ja-JP', {
-                        year: 'numeric', month: 'long', day: 'numeric',
-                        hour: '2-digit', minute: '2-digit',
-                      })}
-                    </time>
-                  </div>
-                ))
+                records.map(r => {
+                  const linked = linkedMapNames(r);
+                  return (
+                    <div key={r.id} className="record-item">
+                      <button
+                        className="record-delete"
+                        onClick={() => {
+                          const msg = linked.length > 0
+                            ? `この記録を「${availableMaps.find(m => m.id === currentMapId)?.name ?? '現在の地図'}」から外しますか？\n（他の地図「${linked.join('、')}」には残ります）`
+                            : 'この記録を削除しますか？';
+                          if (window.confirm(msg)) onDelete(r.id);
+                        }}
+                        aria-label="記録を削除"
+                      >✕ {linked.length > 0 ? 'この地図から外す' : '削除'}</button>
+
+                      {r.type === 'text' ? (
+                        <p className="record-text">{r.content}</p>
+                      ) : (
+                        <div className="record-photos">
+                          {getStoragePaths(r).map((path, i) => (
+                            <PhotoImage
+                              key={i}
+                              storagePath={path}
+                              alt={r.caption ?? `写真${i + 1}`}
+                              className="record-img"
+                            />
+                          ))}
+                          {r.caption && <p className="record-caption">{r.caption}</p>}
+                        </div>
+                      )}
+
+                      {linked.length > 0 && (
+                        <p className="record-linked-maps">
+                          他にも紐づく地図: {linked.join('、')}
+                        </p>
+                      )}
+
+                      <time className="record-date">
+                        {new Date(r.createdAt).toLocaleString('ja-JP', {
+                          year: 'numeric', month: 'long', day: 'numeric',
+                          hour: '2-digit', minute: '2-digit',
+                        })}
+                      </time>
+                    </div>
+                  );
+                })
               )}
             </div>
             <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setMode('add-text')}>
+              <button className="btn btn-secondary" onClick={() => openAddForm('add-text')}>
                 📝 テキストを追加
               </button>
-              <button className="btn btn-primary" onClick={() => setMode('add-image')}>
+              <button className="btn btn-primary" onClick={() => openAddForm('add-image')}>
                 📷 写真を追加
               </button>
             </div>
@@ -147,9 +188,33 @@ export function CountryModal({ countryName, countryId, records, onAdd, onDelete,
               value={text}
               onChange={e => setText(e.target.value)}
               placeholder="旅の思い出、食べたもの、感想など…"
-              rows={6}
+              rows={5}
               autoFocus
             />
+
+            {extraMaps.length > 0 && (
+              <div className="map-multi-select">
+                <label className="form-label">追加する地図</label>
+                <div className="map-checkbox-list">
+                  <label className="map-checkbox-item map-checkbox-item--current">
+                    <input type="checkbox" checked disabled />
+                    <span>{availableMaps.find(m => m.id === currentMapId)?.name ?? '現在の地図'}</span>
+                    <span className="map-checkbox-badge">現在</span>
+                  </label>
+                  {extraMaps.map(m => (
+                    <label key={m.id} className="map-checkbox-item">
+                      <input
+                        type="checkbox"
+                        checked={selectedMapIds.includes(m.id)}
+                        onChange={() => toggleMap(m.id)}
+                      />
+                      <span>{m.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="form-actions">
               <button className="btn btn-ghost" onClick={backToList} disabled={saving}>戻る</button>
               <button className="btn btn-primary" onClick={handleAddText} disabled={!text.trim() || saving}>
@@ -192,6 +257,30 @@ export function CountryModal({ countryName, countryId, records, onAdd, onDelete,
               onChange={e => setCaption(e.target.value)}
               placeholder="写真の説明を入力…"
             />
+
+            {extraMaps.length > 0 && (
+              <div className="map-multi-select">
+                <label className="form-label">追加する地図</label>
+                <div className="map-checkbox-list">
+                  <label className="map-checkbox-item map-checkbox-item--current">
+                    <input type="checkbox" checked disabled />
+                    <span>{availableMaps.find(m => m.id === currentMapId)?.name ?? '現在の地図'}</span>
+                    <span className="map-checkbox-badge">現在</span>
+                  </label>
+                  {extraMaps.map(m => (
+                    <label key={m.id} className="map-checkbox-item">
+                      <input
+                        type="checkbox"
+                        checked={selectedMapIds.includes(m.id)}
+                        onChange={() => toggleMap(m.id)}
+                      />
+                      <span>{m.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="form-actions">
               <button className="btn btn-ghost" onClick={backToList} disabled={saving}>戻る</button>
               <button className="btn btn-primary" onClick={handleAddImage} disabled={photoEntries.length === 0 || saving}>

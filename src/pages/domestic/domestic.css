@@ -390,3 +390,68 @@
 }
 
 .form-actions .btn-ghost { flex: 1; }
+
+/* ── 複数マップ選択 UI ────────────────────────────── */
+.map-multi-select {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.map-checkbox-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.map-checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #334155;
+  cursor: pointer;
+  user-select: none;
+}
+
+.map-checkbox-item input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #2563EB;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.map-checkbox-item--current {
+  color: #1D4ED8;
+  font-weight: 600;
+}
+
+.map-checkbox-item--current input[type="checkbox"] {
+  cursor: not-allowed;
+}
+
+.map-checkbox-badge {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  color: #2563EB;
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+
+/* ── 投稿の紐づきマップ表示 ──────────────────────── */
+.record-linked-maps {
+  font-size: 11px;
+  color: #64748B;
+  margin: 4px 0 0;
+  padding: 4px 8px;
+  background: #F1F5F9;
+  border-radius: 6px;
+}

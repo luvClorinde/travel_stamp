@@ -2,15 +2,17 @@ import { useState } from 'react';
 import { JapanMap, japaneseNames } from './components/JapanMap';
 import { PrefectureModal } from './components/PrefectureModal';
 import { useTravel } from './hooks/useTravel';
+import type { MapMeta } from '../../types';
 import './domestic.css';
 
 interface Props {
   mapId: string;
   mapName: string;
+  availableMaps: MapMeta[];  // 同タイプ（domestic）の地図一覧
   onBack: () => void;
 }
 
-export default function DomesticPage({ mapId, mapName, onBack }: Props) {
+export default function DomesticPage({ mapId, mapName, availableMaps, onBack }: Props) {
   const { addRecord, deleteRecord, getRecords, isVisited, visitedCount, loading } = useTravel(mapId);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -42,8 +44,10 @@ export default function DomesticPage({ mapId, mapName, onBack }: Props) {
         <PrefectureModal
           prefectureName={selectedName}
           records={getRecords(selectedId)}
-          onAdd={(type, content, caption, files) =>
-            addRecord(selectedId, type, content, caption, files)
+          currentMapId={mapId}
+          availableMaps={availableMaps}
+          onAdd={(type, content, caption, files, extraMapIds) =>
+            addRecord(selectedId, type, content, caption, files, extraMapIds)
           }
           onDelete={(recordId) => deleteRecord(selectedId, recordId)}
           onClose={() => setSelectedId(null)}
