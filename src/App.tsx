@@ -1,33 +1,31 @@
-import { useState } from 'react'
-import DomesticPage from './pages/domestic'
-import OverseasPage from './pages/overseas'
-import './App.css'
+import { useState } from 'react';
+import DomesticPage from './pages/domestic';
+import OverseasPage from './pages/overseas';
+import './App.css';
 
-type TravelType = 'domestic' | 'overseas'
+type Mode = 'domestic' | 'overseas';
 
-function App() {
-  const [travelType, setTravelType] = useState<TravelType>('domestic')
+export default function App() {
+  const [mode, setMode] = useState<Mode>('domestic');
 
   return (
-    <>
-      <nav>
+    <div className="app">
+      <nav className="app-nav">
         <button
-          onClick={() => setTravelType('domestic')}
-          aria-pressed={travelType === 'domestic'}
+          className={`nav-tab ${mode === 'domestic' ? 'active' : ''}`}
+          onClick={() => setMode('domestic')}
         >
-          国内旅行
+          🗾 国内旅行
         </button>
         <button
-          onClick={() => setTravelType('overseas')}
-          aria-pressed={travelType === 'overseas'}
+          className={`nav-tab ${mode === 'overseas' ? 'active' : ''}`}
+          onClick={() => setMode('overseas')}
         >
-          海外旅行
+          🌍 海外旅行
         </button>
       </nav>
 
-      {travelType === 'domestic' ? <DomesticPage /> : <OverseasPage />}
-    </>
-  )
+      {mode === 'domestic' ? <DomesticPage /> : <OverseasPage />}
+    </div>
+  );
 }
-
-export default App

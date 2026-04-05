@@ -1,0 +1,5 @@
+/* overseas ページは domestic.css のクラスを共用 */
+/* 世界地図ラッパーの背景色だけ上書き */
+.world-map-wrapper {
+  background: #1a3a52;
+}
