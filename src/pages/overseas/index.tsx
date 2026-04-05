@@ -14,7 +14,7 @@ interface Props {
 }
 
 export default function OverseasPage({ mapId, mapName, availableMaps, onBack }: Props) {
-  const { addRecord, deleteRecord, getRecords, isVisited, visitedCount, loading } = useWorldTravel(mapId);
+  const { addRecord, deleteRecord, getRecords, isVisited, visitedCount, loading, loadError } = useWorldTravel(mapId);
   const [selected, setSelected] = useState<{ id: string; name: string } | null>(null);
 
   return (
@@ -32,6 +32,11 @@ export default function OverseasPage({ mapId, mapName, availableMaps, onBack }: 
       <main className="app-main">
         {loading ? (
           <div style={{ color: '#94A3B8', fontSize: 14, margin: 'auto' }}>読み込み中...</div>
+        ) : loadError ? (
+          <div style={{ color: '#EF4444', fontSize: 13, margin: 'auto', padding: 16, textAlign: 'center' }}>
+            データの読み込みに失敗しました<br />
+            <code style={{ fontSize: 11, color: '#94A3B8' }}>{loadError}</code>
+          </div>
         ) : (
           <WorldMap isVisited={isVisited} onCountryClick={(id, name) => setSelected({ id, name })} />
         )}

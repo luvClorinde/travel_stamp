@@ -8,7 +8,6 @@ export interface DbPhoto {
 export interface DbPost {
   id: string;
   created_at: string;
-  user_id: string;
   location_id: string;
   body: string;
   mapIds: string[];   // 紐づくマップID一覧（post_maps 経由）
@@ -23,7 +22,6 @@ export async function getPosts(mapId: string): Promise<DbPost[]> {
   return (data ?? []).map((row: {
     id: string;
     created_at: string;
-    user_id: string;
     location_id: string;
     body: string;
     map_ids: unknown;
@@ -45,7 +43,6 @@ export async function getPosts(mapId: string): Promise<DbPost[]> {
     return {
       id: row.id,
       created_at: row.created_at,
-      user_id: row.user_id,
       location_id: row.location_id,
       body: row.body,
       mapIds: rawMapIds,

@@ -29,10 +29,12 @@ function buildTravelData(posts: DbPost[]): TravelData {
 export function useTravel(mapId: string) {
   const [data, setData] = useState<TravelData>({});
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!mapId) return;
     setLoading(true);
+    setLoadError(null);
     getPosts(mapId)
       .then(posts => {
         setData(buildTravelData(posts));
@@ -40,6 +42,7 @@ export function useTravel(mapId: string) {
       })
       .catch(err => {
         console.error('useTravel load error:', err);
+        setLoadError(err?.message ?? String(err));
         setLoading(false);
       });
   }, [mapId]);
@@ -119,5 +122,5 @@ export function useTravel(mapId: string) {
 
   const visitedCount = Object.values(data).filter(r => r.length > 0).length;
 
-  return { addRecord, deleteRecord, getRecords, isVisited, visitedCount, loading };
+  return { addRecord, deleteRecord, getRecords, isVisited, visitedCount, loading, loadError };
 }
