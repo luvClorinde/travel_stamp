@@ -67,9 +67,9 @@ export default function App() {
         )}
         {viewSettingsMap && (
           <ViewSettingsPanel
-            map={viewSettingsMap}
-            onEnable={async () => { await enableView(viewSettingsMap.id); setViewSettingsMap(m => m ? { ...m, viewEnabled: true } : m); }}
-            onDisable={async () => { await disableView(viewSettingsMap.id); setViewSettingsMap(m => m ? { ...m, viewEnabled: false, viewToken: null } : m); }}
+            map={maps.find(m => m.id === viewSettingsMap.id) ?? viewSettingsMap}
+            onEnable={async () => { await enableView(viewSettingsMap.id); }}
+            onDisable={async () => { await disableView(viewSettingsMap.id); }}
             onRegenerate={async () => { await regenerateToken(viewSettingsMap.id); }}
             onClose={() => setViewSettingsMap(null)}
           />

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { MapMeta } from '../types';
+import { CopyButton } from '../components/CopyButton';
 
 interface Props {
   maps: MapMeta[];
@@ -17,7 +18,6 @@ type FormMode = 'none' | 'create' | 'join';
 
 export function MapList({ maps, displayName, onCreate, onJoin, onDelete, onSelect, onLogout, onOpenSettings, onOpenViewSettings }: Props) {
   const [formMode, setFormMode] = useState<FormMode>('none');
-  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [formLoading, setFormLoading] = useState(false);
 
   // 新規作成フォーム
@@ -31,6 +31,10 @@ export function MapList({ maps, displayName, onCreate, onJoin, onDelete, onSelec
 
   async function handleCreate() {
     if (!createName.trim()) return;
+    if (createName.trim().length > 15) {
+      setCreateError('地図の名前は15文字以内で入力してください。');
+      return;
+    }
     setFormLoading(true);
     try {
       await onCreate(createName.trim(), createType);
@@ -76,14 +80,7 @@ export function MapList({ maps, displayName, onCreate, onJoin, onDelete, onSelec
     setJoinError('');
   }
 
-  function copyShareId(shareId: string) {
-    navigator.clipboard.writeText(shareId).then(() => {
-      setCopiedId(shareId);
-      setTimeout(() => setCopiedId(null), 2000);
-    }).catch(() => {});
-  }
-
-  return (
+return (
     <div className="map-list-page">
       <header className="map-list-header">
         <h1 className="app-title">旅行スタンプ帳</h1>
@@ -91,7 +88,7 @@ export function MapList({ maps, displayName, onCreate, onJoin, onDelete, onSelec
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 4 }}>
           <span style={{ fontSize: 13, color: '#64748B' }}>{displayName}</span>
           <button className="logout-btn" onClick={onOpenSettings} title="アカウント設定">⚙️</button>
-          <button className="logout-btn" onClick={onLogout}>ログアウト</button>
+          <button className="logout-btn" onClick={() => { if (window.confirm('ログアウトしますか？')) onLogout(); }}>ログアウト</button>
         </div>
       </header>
 
@@ -104,28 +101,42 @@ export function MapList({ maps, displayName, onCreate, onJoin, onDelete, onSelec
           {maps.map(m => (
             <li key={m.id} className="map-list-item">
               <button className="map-list-select" onClick={() => onSelect(m)}>
-                <span className="map-list-icon">{m.type === 'domestic' ? '🗾' : '🌍'}</span>
                 <div className="map-list-info">
                   <span className="map-list-name">{m.name}</span>
-                  <span className="map-list-shareid">
-                    共有ID: {m.shareId}
-                    <button
-                      className={`copy-btn${copiedId === m.shareId ? ' copy-btn--copied' : ''}`}
-                      onClick={e => { e.stopPropagation(); copyShareId(m.shareId); }}
-                      title="共有IDをコピー"
-                    >
-                      {copiedId === m.shareId ? 'コピーしました' : 'コピー'}
-                    </button>
-                  </span>
+                  <div className="map-list-share-group">
+                    <span className="map-list-shareid">
+                      共有ID:&nbsp;{m.shareId}
+                    </span>
+                    <span onClick={e => e.stopPropagation()}>
+                      <CopyButton text={m.shareId} title="共有IDをコピー" />
+                    </span>
+                  </div>
+                  <div className="map-list-badge-group">
+                    <span className="map-list-type">{m.type === 'domestic' ? '国内' : '海外'}</span>
+                    <span onClick={e => e.stopPropagation()}>
+                      <button
+                        className={`map-view-btn${m.viewEnabled ? ' map-view-btn--on' : ''}`}
+                        onClick={() => onOpenViewSettings(m)}
+                        title={m.viewEnabled ? '閲覧共有 ON' : '閲覧共有 OFF'}
+                        aria-label="閲覧専用共有"
+                      >
+                        {m.viewEnabled ? (
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                          </svg>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                            <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                            <line x1="1" y1="1" x2="23" y2="23"/>
+                          </svg>
+                        )}
+                      </button>
+                    </span>
+                  </div>
                 </div>
-                <span className="map-list-type">{m.type === 'domestic' ? '国内' : '海外'}</span>
               </button>
-              <button
-                className={`map-view-btn${m.viewEnabled ? ' map-view-btn--on' : ''}`}
-                onClick={e => { e.stopPropagation(); onOpenViewSettings(m); }}
-                title="閲覧専用共有"
-                aria-label="閲覧専用共有"
-              >👁</button>
               <button
                 className="map-list-delete"
                 onClick={() => {
@@ -148,6 +159,9 @@ export function MapList({ maps, displayName, onCreate, onJoin, onDelete, onSelec
               autoFocus
               onKeyDown={e => e.key === 'Enter' && handleCreate()}
             />
+            <p style={{ fontSize: 11, color: createName.length > 15 ? '#ef4444' : '#94A3B8', margin: 0, textAlign: 'right' }}>
+              {createName.length}/15文字
+            </p>
             {createError && (
               <p style={{ fontSize: 12, color: '#ef4444', margin: 0 }}>{createError}</p>
             )}

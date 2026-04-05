@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { MapMeta } from '../types';
+import { CopyButton } from '../components/CopyButton';
 
 interface Props {
   map: MapMeta;
@@ -16,8 +17,6 @@ function buildViewUrl(token: string): string {
 export function ViewSettingsPanel({ map, onEnable, onDisable, onRegenerate, onClose }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-
   async function run(fn: () => Promise<void>) {
     setLoading(true);
     setError(null);
@@ -26,13 +25,6 @@ export function ViewSettingsPanel({ map, onEnable, onDisable, onRegenerate, onCl
     finally { setLoading(false); }
   }
 
-  function copyUrl() {
-    if (!map.viewToken) return;
-    navigator.clipboard.writeText(buildViewUrl(map.viewToken)).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }).catch(() => {});
-  }
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -74,12 +66,7 @@ export function ViewSettingsPanel({ map, onEnable, onDisable, onRegenerate, onCl
                 <p style={{ fontSize: 11, fontWeight: 600, color: '#64748B', margin: '0 0 6px' }}>閲覧URL</p>
                 <div className="view-url-row">
                   <span className="view-url-text">{buildViewUrl(map.viewToken)}</span>
-                  <button
-                    className={`copy-btn${copied ? ' copy-btn--copied' : ''}`}
-                    onClick={copyUrl}
-                  >
-                    {copied ? 'コピーしました' : 'コピー'}
-                  </button>
+                  <CopyButton text={buildViewUrl(map.viewToken)} title="閲覧URLをコピー" />
                 </div>
                 <button
                   className="btn-text-danger"
