@@ -1,22 +1,25 @@
-/* ── ヘッダー ────────────────────────────────────── */
+/* ── ヘッダー（縦25%固定） ───────────────────────── */
 .app-header {
-  text-align: center;
-  padding: 16px 16px 12px;
-  flex-shrink: 0;
+  flex: 0 0 25%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px;
+  gap: clamp(4px, 1dvh, 12px);
 }
 
 .app-title {
-  font-size: 24px;
+  font-size: clamp(14px, 3.5dvh, 32px);
   font-weight: 800;
   color: #1D4ED8;
   letter-spacing: -0.5px;
-  margin-bottom: 4px;
 }
 
 .app-subtitle {
-  font-size: 13px;
+  font-size: clamp(10px, 1.6dvh, 16px);
   color: #64748B;
-  margin-bottom: 10px;
 }
 
 .visited-counter {
@@ -26,13 +29,13 @@
   background: #EFF6FF;
   border: 1px solid #BFDBFE;
   border-radius: 999px;
-  padding: 5px 16px;
-  font-size: 13px;
+  padding: clamp(3px, 0.7dvh, 8px) clamp(10px, 2dvh, 22px);
+  font-size: clamp(10px, 1.6dvh, 16px);
   color: #1E40AF;
 }
 
 .counter-num {
-  font-size: 20px;
+  font-size: clamp(16px, 3dvh, 28px);
   font-weight: 800;
   color: #1D4ED8;
 }
@@ -40,23 +43,23 @@
 .counter-sep { font-weight: 600; }
 .counter-total { font-weight: 600; }
 
-/* ── 地図エリア ───────────────────────────────────── */
+/* ── 地図エリア（残り75%） ───────────────────────── */
 .app-main {
   flex: 1;
   min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 8px 16px 12px;
+  padding: 0 16px 5dvh;
 }
 
-/* 日本地図コンテナ：正方形、縦に合わせる */
+/* 日本地図コンテナ：
+   広い時 → 高さ 75dvh（幅はアスペクト比で自動）
+   狭い時 → 幅 100%（高さはアスペクト比で自動） */
 .map-wrapper {
-  aspect-ratio: 1 / 1;
-  height: 100%;
-  max-height: 100%;
-  max-width: 100%;
-  background: #fff;
+  width: min(100%, calc(70dvh * 438 / 516));
+  aspect-ratio: 438 / 516;
+  background: #6aafd0;
   border-radius: 16px;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
   padding: 12px;
@@ -73,14 +76,23 @@
 /* 世界地図コンテナ：横長、幅いっぱい */
 .world-map-wrapper {
   width: 100%;
-  background: #1a3a52;
+  background: #6aafd0;
   border-radius: 12px;
   overflow: hidden;
 }
 
-/* 海外ページの app-main は正方形制約なし */
+/* 海外ページ：世界地図を中央配置 */
 .page-layout--overseas .app-main {
-  align-items: flex-start;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 世界地図サイズ：
+   広い時 → 高さ 75dvh（幅はアスペクト比で自動）
+   狭い時 → 幅 100%（高さはアスペクト比で自動） */
+.page-layout--overseas .world-map-wrapper {
+  width: min(100%, calc(70dvh * 960 / 500));
+  aspect-ratio: 960 / 500;
 }
 
 /* ── モーダル ─────────────────────────────────────── */
@@ -192,6 +204,20 @@
   color: #64748B;
   margin-top: 4px;
 }
+
+.record-delete {
+  float: right;
+  background: none;
+  border: none;
+  color: #ef4444;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.record-delete:hover { background: #fee2e2; }
 
 .record-date {
   display: block;

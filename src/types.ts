@@ -1,12 +1,21 @@
 export type RecordType = 'text' | 'image';
 
+export interface MapMeta {
+  id: string;
+  shareId: string;
+  name: string;
+  type: 'domestic' | 'international';
+  createdAt: string;
+}
+
 export interface TravelRecord {
   id: string;
   type: RecordType;
-  content: string;      // テキスト or 後方互換用 base64（画像1枚目）
-  caption?: string;
-  photos?: string[];    // 複数画像 data URL（imageタイプで使用）
+  content: string;     // テキスト投稿の本文、画像投稿では空文字
+  caption?: string;    // 画像投稿のキャプション
+  photos?: string[];   // 画像投稿の storage_path 一覧（表示時に signed URL を生成する）
   createdAt: string;
+  mapIds: string[];    // この投稿が紐づくマップID一覧
 }
 
 export interface TravelData {

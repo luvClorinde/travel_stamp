@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import japanMap from '@svg-maps/japan';
 import { useZoomPan } from '../../../hooks/useZoomPan';
 
@@ -63,34 +63,19 @@ interface Props {
 
 export function JapanMap({ isVisited, onSelect }: Props) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
-  const [labelPos, setLabelPos] = useState<Record<string, { x: number; y: number }>>({});
-  const svgRef = useRef<SVGSVGElement>(null);
 
   const { wrapperRef, transform, zoomed, didDragRef, handleReset } = useZoomPan({
     viewWidth: VIEW_WIDTH,
     viewHeight: VIEW_HEIGHT,
   });
 
-  useEffect(() => {
-    if (!svgRef.current) return;
-    const pos: Record<string, { x: number; y: number }> = {};
-    japanMap.locations.forEach((loc: { id: string; name: string; path: string }) => {
-      const el = svgRef.current!.querySelector<SVGGraphicsElement>(`#p-${loc.id}`);
-      if (el) {
-        const b = el.getBBox();
-        pos[loc.id] = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
-      }
-    });
-    setLabelPos(pos);
-  }, []);
-
   function getFill(id: string) {
-    if (hoveredId === id) return isVisited(id) ? '#2563EB' : '#9CA3AF';
-    return isVisited(id) ? '#3B82F6' : '#D1D5DB';
+    if (hoveredId === id) return isVisited(id) ? '#e05252' : '#c5d8e2';
+    return isVisited(id) ? '#ff6b6b' : '#dceaf0';
   }
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div style={{ position: 'relative', width: '100%', display: 'flex', justifyContent: 'center' }}>
       {zoomed && (
         <button
           onClick={handleReset}
@@ -110,14 +95,12 @@ export function JapanMap({ isVisited, onSelect }: Props) {
         style={{ userSelect: 'none', cursor: 'default' }}
       >
         <svg
-          ref={svgRef}
           viewBox={japanMap.viewBox}
           className="japan-map"
           aria-label="日本地図 — 都道府県をクリックして記録を追加"
         >
           <g transform={transform || undefined}>
             {japanMap.locations.map((loc: { id: string; name: string; path: string }) => {
-              const lp = labelPos[loc.id];
               const name = japaneseNames[loc.id] ?? loc.name;
               return (
                 <g
@@ -137,25 +120,11 @@ export function JapanMap({ isVisited, onSelect }: Props) {
                     id={`p-${loc.id}`}
                     d={loc.path}
                     fill={getFill(loc.id)}
-                    stroke="#ffffff"
-                    strokeWidth="0.5"
+                    stroke="#6aafd0"
+                    strokeWidth="0.8"
                     strokeLinejoin="round"
                     vectorEffect="non-scaling-stroke"
                   />
-                  {lp && (
-                    <text
-                      x={lp.x}
-                      y={lp.y}
-                      textAnchor="middle"
-                      dominantBaseline="middle"
-                      fontSize="4"
-                      fontFamily="'Hiragino Sans', 'Meiryo', sans-serif"
-                      fill={isVisited(loc.id) ? '#ffffff' : '#374151'}
-                      pointerEvents="none"
-                    >
-                      {name}
-                    </text>
-                  )}
                 </g>
               );
             })}

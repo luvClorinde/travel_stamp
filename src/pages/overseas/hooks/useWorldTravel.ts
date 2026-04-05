@@ -1,48 +1,97 @@
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { TravelData, TravelRecord, RecordType } from '../../../types';
+import type { DbPost } from '../../../lib/postApi';
+import { getPosts, addTextPost, addImagePost, removePostFromMap } from '../../../lib/postApi';
 
-const STORAGE_KEY = 'travel_stamp_world_v1';
+function dbPostToRecord(post: DbPost): TravelRecord {
+  const hasPhotos = post.photos.length > 0;
+  return {
+    id: post.id,
+    type: hasPhotos ? 'image' : 'text',
+    content: hasPhotos ? '' : post.body,
+    caption: hasPhotos ? (post.body || undefined) : undefined,
+    photos: hasPhotos ? post.photos.map(p => p.storage_path) : undefined,
+    createdAt: post.created_at,
+    mapIds: post.mapIds,
+  };
+}
 
-function load(): TravelData {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
+function buildTravelData(posts: DbPost[]): TravelData {
+  const data: TravelData = {};
+  for (const post of posts) {
+    const loc = post.location_id;
+    if (!data[loc]) data[loc] = [];
+    data[loc].push(dbPostToRecord(post));
   }
+  return data;
 }
 
-function persist(data: TravelData) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-}
+export function useWorldTravel(mapId: string) {
+  const [data, setData] = useState<TravelData>({});
+  const [loading, setLoading] = useState(true);
 
-export function useWorldTravel() {
-  const [data, setData] = useState<TravelData>(load);
+  useEffect(() => {
+    if (!mapId) return;
+    setLoading(true);
+    getPosts(mapId)
+      .then(posts => {
+        setData(buildTravelData(posts));
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('useWorldTravel load error:', err);
+        setLoading(false);
+      });
+  }, [mapId]);
 
-  const addRecord = useCallback((
+  /**
+   * 投稿を追加する。
+   * @param extraMapIds 現在のマップ以外にも紐づけるマップIDの配列（省略時は現在のマップのみ）
+   */
+  const addRecord = useCallback(async (
     countryId: string,
     type: RecordType,
     content: string,
     caption?: string,
-    photos?: string[],
+    files?: File[],
+    extraMapIds: string[] = [],
   ) => {
-    const record: TravelRecord = {
-      id: crypto.randomUUID(),
-      type,
-      content,
-      caption,
-      photos,
-      createdAt: new Date().toISOString(),
-    };
-    setData(prev => {
-      const next = {
+    const mapIds = [mapId, ...extraMapIds.filter(id => id !== mapId)];
+
+    if (type === 'text') {
+      const id = await addTextPost(mapIds, '', countryId, content);
+      const record: TravelRecord = {
+        id, type: 'text', content, createdAt: new Date().toISOString(), mapIds,
+      };
+      setData(prev => ({
         ...prev,
         [countryId]: [...(prev[countryId] ?? []), record],
-      };
-      persist(next);
+      }));
+    } else {
+      if (!files || files.length === 0) return;
+      await addImagePost(mapIds, '', countryId, caption ?? '', files);
+      const posts = await getPosts(mapId);
+      setData(buildTravelData(posts));
+    }
+  }, [mapId]);
+
+  /**
+   * 現在のマップから投稿を外す。
+   * 他マップにも紐づいていない場合は投稿本体ごと削除。
+   */
+  const deleteRecord = useCallback(async (countryId: string, recordId: string) => {
+    await removePostFromMap(recordId, mapId);
+    setData(prev => {
+      const filtered = (prev[countryId] ?? []).filter(r => r.id !== recordId);
+      const next = { ...prev };
+      if (filtered.length === 0) {
+        delete next[countryId];
+      } else {
+        next[countryId] = filtered;
+      }
       return next;
     });
-  }, []);
+  }, [mapId]);
 
   const getRecords = useCallback((countryId: string): TravelRecord[] => {
     return data[countryId] ?? [];
@@ -54,5 +103,5 @@ export function useWorldTravel() {
 
   const visitedCount = Object.values(data).filter(r => r.length > 0).length;
 
-  return { addRecord, getRecords, isVisited, visitedCount };
+  return { addRecord, deleteRecord, getRecords, isVisited, visitedCount, loading };
 }

@@ -1,58 +1,109 @@
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { TravelData, TravelRecord, RecordType } from '../../../types';
+import type { DbPost } from '../../../lib/postApi';
+import { getPosts, addTextPost, addImagePost, removePostFromMap } from '../../../lib/postApi';
 
-const STORAGE_KEY = 'travel_stamp_domestic_v1';
+function dbPostToRecord(post: DbPost): TravelRecord {
+  const hasPhotos = post.photos.length > 0;
+  return {
+    id: post.id,
+    type: hasPhotos ? 'image' : 'text',
+    content: hasPhotos ? '' : post.body,
+    caption: hasPhotos ? (post.body || undefined) : undefined,
+    photos: hasPhotos ? post.photos.map(p => p.storage_path) : undefined,
+    createdAt: post.created_at,
+    mapIds: post.mapIds,
+  };
+}
 
-function load(): TravelData {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
+function buildTravelData(posts: DbPost[]): TravelData {
+  const data: TravelData = {};
+  for (const post of posts) {
+    const loc = post.location_id;
+    if (!data[loc]) data[loc] = [];
+    data[loc].push(dbPostToRecord(post));
   }
+  return data;
 }
 
-function persist(data: TravelData) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-}
+export function useTravel(mapId: string) {
+  const [data, setData] = useState<TravelData>({});
+  const [loading, setLoading] = useState(true);
 
-export function useTravel() {
-  const [data, setData] = useState<TravelData>(load);
+  useEffect(() => {
+    if (!mapId) return;
+    setLoading(true);
+    getPosts(mapId)
+      .then(posts => {
+        setData(buildTravelData(posts));
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('useTravel load error:', err);
+        setLoading(false);
+      });
+  }, [mapId]);
 
-  const addRecord = useCallback((
-    prefectureId: string,
+  /**
+   * 投稿を追加する。
+   * @param extraMapIds 現在のマップ以外にも紐づけるマップIDの配列（省略時は現在のマップのみ）
+   */
+  const addRecord = useCallback(async (
+    locationId: string,
     type: RecordType,
     content: string,
     caption?: string,
-    photos?: string[],
+    files?: File[],
+    extraMapIds: string[] = [],
   ) => {
-    const record: TravelRecord = {
-      id: crypto.randomUUID(),
-      type,
-      content,
-      caption,
-      photos,
-      createdAt: new Date().toISOString(),
-    };
-    setData(prev => {
-      const next = {
-        ...prev,
-        [prefectureId]: [...(prev[prefectureId] ?? []), record],
+    // 重複を除いたマップID一覧（現在のマップを先頭に）
+    const mapIds = [mapId, ...extraMapIds.filter(id => id !== mapId)];
+
+    if (type === 'text') {
+      const id = await addTextPost(mapIds, '', locationId, content);
+      const record: TravelRecord = {
+        id, type: 'text', content, createdAt: new Date().toISOString(), mapIds,
       };
-      persist(next);
+      setData(prev => ({
+        ...prev,
+        [locationId]: [...(prev[locationId] ?? []), record],
+      }));
+    } else {
+      if (!files || files.length === 0) return;
+      await addImagePost(mapIds, '', locationId, caption ?? '', files);
+      // アップロード後に storage_path 付きの最新データを再取得
+      const posts = await getPosts(mapId);
+      setData(buildTravelData(posts));
+    }
+  }, [mapId]);
+
+  /**
+   * 現在のマップから投稿を外す。
+   * 他マップにも紐づいていない場合は投稿本体ごと削除。
+   */
+  const deleteRecord = useCallback(async (locationId: string, recordId: string) => {
+    await removePostFromMap(recordId, mapId);
+    setData(prev => {
+      const filtered = (prev[locationId] ?? []).filter(r => r.id !== recordId);
+      const next = { ...prev };
+      if (filtered.length === 0) {
+        delete next[locationId];
+      } else {
+        next[locationId] = filtered;
+      }
       return next;
     });
-  }, []);
+  }, [mapId]);
 
-  const getRecords = useCallback((prefectureId: string): TravelRecord[] => {
-    return data[prefectureId] ?? [];
+  const getRecords = useCallback((locationId: string): TravelRecord[] => {
+    return data[locationId] ?? [];
   }, [data]);
 
-  const isVisited = useCallback((prefectureId: string): boolean => {
-    return (data[prefectureId]?.length ?? 0) > 0;
+  const isVisited = useCallback((locationId: string): boolean => {
+    return (data[locationId]?.length ?? 0) > 0;
   }, [data]);
 
   const visitedCount = Object.values(data).filter(r => r.length > 0).length;
 
-  return { addRecord, getRecords, isVisited, visitedCount };
+  return { addRecord, deleteRecord, getRecords, isVisited, visitedCount, loading };
 }

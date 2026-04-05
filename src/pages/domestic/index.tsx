@@ -4,8 +4,14 @@ import { PrefectureModal } from './components/PrefectureModal';
 import { useTravel } from './hooks/useTravel';
 import './domestic.css';
 
-export default function DomesticPage() {
-  const { addRecord, getRecords, isVisited, visitedCount } = useTravel();
+interface Props {
+  mapId: string;
+  mapName: string;
+  onBack: () => void;
+}
+
+export default function DomesticPage({ mapId, mapName, onBack }: Props) {
+  const { addRecord, deleteRecord, getRecords, isVisited, visitedCount, loading } = useTravel(mapId);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const selectedName = selectedId ? (japaneseNames[selectedId] ?? selectedId) : null;
@@ -13,7 +19,8 @@ export default function DomesticPage() {
   return (
     <div className="page-layout">
       <header className="app-header">
-        <h1 className="app-title">旅行スタンプ帳</h1>
+        <button className="back-btn" onClick={onBack}>← 地図一覧</button>
+        <h1 className="app-title">{mapName}</h1>
         <p className="app-subtitle">都道府県をクリックして旅の記録を残そう</p>
         <div className="visited-counter">
           <span className="counter-num">{visitedCount}</span>
@@ -24,16 +31,21 @@ export default function DomesticPage() {
       </header>
 
       <main className="app-main">
-        <JapanMap isVisited={isVisited} onSelect={setSelectedId} />
+        {loading ? (
+          <div style={{ color: '#94A3B8', fontSize: 14, margin: 'auto' }}>読み込み中...</div>
+        ) : (
+          <JapanMap isVisited={isVisited} onSelect={setSelectedId} />
+        )}
       </main>
 
       {selectedId && selectedName && (
         <PrefectureModal
           prefectureName={selectedName}
           records={getRecords(selectedId)}
-          onAdd={(type, content, caption, photos) =>
-            addRecord(selectedId, type, content, caption, photos)
+          onAdd={(type, content, caption, files) =>
+            addRecord(selectedId, type, content, caption, files)
           }
+          onDelete={(recordId) => deleteRecord(selectedId, recordId)}
           onClose={() => setSelectedId(null)}
         />
       )}

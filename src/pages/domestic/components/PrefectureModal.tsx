@@ -1,68 +1,83 @@
 import { useState, useRef } from 'react';
 import type { TravelRecord, RecordType } from '../../../types';
+import { PhotoImage } from '../../../components/PhotoImage';
+
+interface PhotoEntry {
+  file: File;
+  preview: string;
+}
 
 interface Props {
   prefectureName: string;
   records: TravelRecord[];
-  onAdd: (type: RecordType, content: string, caption?: string, photos?: string[]) => void;
+  onAdd: (type: RecordType, content: string, caption?: string, files?: File[]) => Promise<void>;
+  onDelete: (recordId: string) => void;
   onClose: () => void;
 }
 
 type Mode = 'list' | 'add-text' | 'add-image';
 
-// 後方互換：古い単一画像データも表示できるよう正規化
-function getPhotos(record: TravelRecord): string[] {
+/** photos フィールドから storage_path 一覧を取得 */
+function getStoragePaths(record: TravelRecord): string[] {
   if (record.photos && record.photos.length > 0) return record.photos;
-  if (record.type === 'image' && record.content) return [record.content];
   return [];
 }
 
-export function PrefectureModal({ prefectureName, records, onAdd, onClose }: Props) {
+export function PrefectureModal({ prefectureName, records, onAdd, onDelete, onClose }: Props) {
   const [mode, setMode] = useState<Mode>('list');
   const [text, setText] = useState('');
-  const [photos, setPhotos] = useState<string[]>([]);
+  const [photoEntries, setPhotoEntries] = useState<PhotoEntry[]>([]);
   const [caption, setCaption] = useState('');
+  const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
     if (files.length === 0) return;
-    const readers = files.map(file => new Promise<string>(resolve => {
-      const reader = new FileReader();
-      reader.onload = ev => resolve(ev.target?.result as string);
-      reader.readAsDataURL(file);
-    }));
-    Promise.all(readers).then(results => {
-      setPhotos(prev => [...prev, ...results]);
-    });
-    // 同じファイルを再選択できるようリセット
+    const entries = files.map(f => ({ file: f, preview: URL.createObjectURL(f) }));
+    setPhotoEntries(prev => [...prev, ...entries]);
     e.target.value = '';
   }
 
   function removePhoto(index: number) {
-    setPhotos(prev => prev.filter((_, i) => i !== index));
-  }
-
-  function handleAddText() {
-    if (!text.trim()) return;
-    onAdd('text', text.trim());
-    setText('');
-    setMode('list');
-  }
-
-  function handleAddImage() {
-    if (photos.length === 0) return;
-    onAdd('image', photos[0], caption.trim() || undefined, photos);
-    setPhotos([]);
-    setCaption('');
-    setMode('list');
+    setPhotoEntries(prev => {
+      URL.revokeObjectURL(prev[index].preview);
+      return prev.filter((_, i) => i !== index);
+    });
   }
 
   function backToList() {
-    setMode('list');
-    setPhotos([]);
+    photoEntries.forEach(e => URL.revokeObjectURL(e.preview));
+    setPhotoEntries([]);
     setCaption('');
     setText('');
+    setMode('list');
+  }
+
+  async function handleAddText() {
+    if (!text.trim()) return;
+    setSaving(true);
+    try {
+      await onAdd('text', text.trim());
+      setText('');
+      setMode('list');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleAddImage() {
+    if (photoEntries.length === 0) return;
+    setSaving(true);
+    try {
+      await onAdd('image', caption.trim(), undefined, photoEntries.map(e => e.file));
+      photoEntries.forEach(e => URL.revokeObjectURL(e.preview));
+      setPhotoEntries([]);
+      setCaption('');
+      setMode('list');
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -82,19 +97,30 @@ export function PrefectureModal({ prefectureName, records, onAdd, onClose }: Pro
               ) : (
                 records.map(r => (
                   <div key={r.id} className="record-item">
+                    <button
+                      className="record-delete"
+                      onClick={() => { if (window.confirm('この記録を削除しますか？')) onDelete(r.id); }}
+                      aria-label="記録を削除"
+                    >✕ 削除</button>
                     {r.type === 'text' ? (
                       <p className="record-text">{r.content}</p>
                     ) : (
                       <div className="record-photos">
-                        {getPhotos(r).map((src, i) => (
-                          <img key={i} src={src} alt={r.caption ?? `写真${i + 1}`} className="record-img" />
+                        {getStoragePaths(r).map((path, i) => (
+                          <PhotoImage
+                            key={i}
+                            storagePath={path}
+                            alt={r.caption ?? `写真${i + 1}`}
+                            className="record-img"
+                          />
                         ))}
                         {r.caption && <p className="record-caption">{r.caption}</p>}
                       </div>
                     )}
                     <time className="record-date">
-                      {new Date(r.createdAt).toLocaleDateString('ja-JP', {
+                      {new Date(r.createdAt).toLocaleString('ja-JP', {
                         year: 'numeric', month: 'long', day: 'numeric',
+                        hour: '2-digit', minute: '2-digit',
                       })}
                     </time>
                   </div>
@@ -124,9 +150,9 @@ export function PrefectureModal({ prefectureName, records, onAdd, onClose }: Pro
               autoFocus
             />
             <div className="form-actions">
-              <button className="btn btn-ghost" onClick={backToList}>戻る</button>
-              <button className="btn btn-primary" onClick={handleAddText} disabled={!text.trim()}>
-                保存する
+              <button className="btn btn-ghost" onClick={backToList} disabled={saving}>戻る</button>
+              <button className="btn btn-primary" onClick={handleAddText} disabled={!text.trim() || saving}>
+                {saving ? '保存中...' : '保存する'}
               </button>
             </div>
           </div>
@@ -142,16 +168,16 @@ export function PrefectureModal({ prefectureName, records, onAdd, onClose }: Pro
               onChange={handleFileChange}
               style={{ display: 'none' }}
             />
-            <button className="btn btn-upload" onClick={() => fileInputRef.current?.click()}>
+            <button className="btn btn-upload" onClick={() => fileInputRef.current?.click()} disabled={saving}>
               📁 写真を選択（複数可）
             </button>
 
-            {photos.length > 0 && (
+            {photoEntries.length > 0 && (
               <div className="preview-grid">
-                {photos.map((src, i) => (
+                {photoEntries.map((entry, i) => (
                   <div key={i} className="preview-item">
-                    <img src={src} alt={`プレビュー${i + 1}`} className="preview-thumb" />
-                    <button className="preview-remove" onClick={() => removePhoto(i)} aria-label="削除">✕</button>
+                    <img src={entry.preview} alt={`プレビュー${i + 1}`} className="preview-thumb" />
+                    <button className="preview-remove" onClick={() => removePhoto(i)} aria-label="削除" disabled={saving}>✕</button>
                   </div>
                 ))}
               </div>
@@ -166,9 +192,9 @@ export function PrefectureModal({ prefectureName, records, onAdd, onClose }: Pro
               placeholder="写真の説明を入力…"
             />
             <div className="form-actions">
-              <button className="btn btn-ghost" onClick={backToList}>戻る</button>
-              <button className="btn btn-primary" onClick={handleAddImage} disabled={photos.length === 0}>
-                保存する
+              <button className="btn btn-ghost" onClick={backToList} disabled={saving}>戻る</button>
+              <button className="btn btn-primary" onClick={handleAddImage} disabled={photoEntries.length === 0 || saving}>
+                {saving ? 'アップロード中...' : '保存する'}
               </button>
             </div>
           </div>

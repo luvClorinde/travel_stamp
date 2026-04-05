@@ -45,12 +45,12 @@ export function WorldMap({ isVisited, onCountryClick }: Props) {
     const hovered = hoveredId === id;
     if (visited && hovered) return '#e05252';
     if (visited) return '#ff6b6b';
-    if (hovered) return '#8da8b8';
-    return '#a8bfcc';
+    if (hovered) return '#c5d8e2';
+    return '#dceaf0';
   }
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div style={{ position: 'relative', width: '100%', display: 'flex', justifyContent: 'center' }}>
       {zoomed && (
         <button
           onClick={handleReset}
@@ -71,11 +71,11 @@ export function WorldMap({ isVisited, onCountryClick }: Props) {
       >
         <svg
           viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-          style={{ width: '100%', height: 'auto', display: 'block' }}
+          style={{ width: '100%', height: '100%', display: 'block' }}
           aria-label="世界地図"
         >
           {/* 海洋背景（transform の外に置くことでズーム時も全体を覆う） */}
-          <rect width={WIDTH} height={HEIGHT} fill="#1a3a52" />
+          <rect width={WIDTH} height={HEIGHT} fill="#6aafd0" />
 
           <g transform={transform || undefined}>
             {geographies.map((geo, i) => {
