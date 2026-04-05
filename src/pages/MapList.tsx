@@ -10,11 +10,12 @@ interface Props {
   onSelect: (map: MapMeta) => void;
   onLogout: () => Promise<void>;
   onOpenSettings: () => void;
+  onOpenViewSettings: (map: MapMeta) => void;
 }
 
 type FormMode = 'none' | 'create' | 'join';
 
-export function MapList({ maps, displayName, onCreate, onJoin, onDelete, onSelect, onLogout, onOpenSettings }: Props) {
+export function MapList({ maps, displayName, onCreate, onJoin, onDelete, onSelect, onLogout, onOpenSettings, onOpenViewSettings }: Props) {
   const [formMode, setFormMode] = useState<FormMode>('none');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [formLoading, setFormLoading] = useState(false);
@@ -119,6 +120,12 @@ export function MapList({ maps, displayName, onCreate, onJoin, onDelete, onSelec
                 </div>
                 <span className="map-list-type">{m.type === 'domestic' ? '国内' : '海外'}</span>
               </button>
+              <button
+                className={`map-view-btn${m.viewEnabled ? ' map-view-btn--on' : ''}`}
+                onClick={e => { e.stopPropagation(); onOpenViewSettings(m); }}
+                title="閲覧専用共有"
+                aria-label="閲覧専用共有"
+              >👁</button>
               <button
                 className="map-list-delete"
                 onClick={() => {

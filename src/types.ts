@@ -6,6 +6,8 @@ export interface MapMeta {
   name: string;
   type: 'domestic' | 'international';
   createdAt: string;
+  viewEnabled: boolean;
+  viewToken: string | null;
 }
 
 export interface PhotoDetail {

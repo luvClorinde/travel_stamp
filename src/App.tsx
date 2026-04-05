@@ -4,18 +4,22 @@ import OverseasPage from './pages/overseas';
 import { MapList } from './pages/MapList';
 import { LoginPage } from './pages/LoginPage';
 import { AccountSettings } from './pages/AccountSettings';
+import { ViewSettingsPanel } from './pages/ViewSettingsPanel';
 import { useAuth } from './hooks/useAuth';
 import { useProfile } from './hooks/useProfile';
 import { useMaps } from './hooks/useMaps';
+import { useViewSettings } from './hooks/useViewSettings';
 import type { MapMeta } from './types';
 import './App.css';
 
 export default function App() {
   const { user, loading: authLoading, signIn, signUp, signOut, deleteAccount } = useAuth();
   const { username, updateUsername, updateEmail, updatePassword, refetchProfile } = useProfile(user?.id);
-  const { maps, createMap, joinMap, deleteMap } = useMaps(user?.id ?? '');
+  const { maps, createMap, joinMap, deleteMap, updateMapView } = useMaps(user?.id ?? '');
+  const { enableView, disableView, regenerateToken } = useViewSettings(updateMapView);
   const [selectedMap, setSelectedMap] = useState<MapMeta | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [viewSettingsMap, setViewSettingsMap] = useState<MapMeta | null>(null);
 
   if (authLoading) {
     return (
@@ -46,6 +50,7 @@ export default function App() {
           onSelect={setSelectedMap}
           onLogout={async () => { setSelectedMap(null); await signOut(); }}
           onOpenSettings={() => setShowSettings(true)}
+          onOpenViewSettings={setViewSettingsMap}
         />
         {showSettings && (
           <AccountSettings
@@ -58,6 +63,15 @@ export default function App() {
             onUpdatePassword={updatePassword}
             onDeleteAccount={deleteAccount}
             onClose={() => { setShowSettings(false); refetchProfile(); }}
+          />
+        )}
+        {viewSettingsMap && (
+          <ViewSettingsPanel
+            map={viewSettingsMap}
+            onEnable={async () => { await enableView(viewSettingsMap.id); setViewSettingsMap(m => m ? { ...m, viewEnabled: true } : m); }}
+            onDisable={async () => { await disableView(viewSettingsMap.id); setViewSettingsMap(m => m ? { ...m, viewEnabled: false, viewToken: null } : m); }}
+            onRegenerate={async () => { await regenerateToken(viewSettingsMap.id); }}
+            onClose={() => setViewSettingsMap(null)}
           />
         )}
       </div>

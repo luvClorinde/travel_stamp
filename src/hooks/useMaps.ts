@@ -6,13 +6,15 @@ function generateShareId(): string {
   return Math.random().toString(36).substring(2, 10).toUpperCase();
 }
 
-function rowToMapMeta(m: { id: string; name: string; share_id: string; type: string; created_at: string }): MapMeta {
+function rowToMapMeta(m: { id: string; name: string; share_id: string; type: string; created_at: string; public_view_enabled?: boolean; view_token?: string | null }): MapMeta {
   return {
     id: m.id,
     shareId: m.share_id,
     name: m.name,
     type: (m.type ?? 'domestic') as 'domestic' | 'international',
     createdAt: m.created_at,
+    viewEnabled: m.public_view_enabled ?? false,
+    viewToken: m.view_token ?? null,
   };
 }
 
@@ -73,7 +75,7 @@ export function useMaps(userId: string) {
 
     setMaps(prev => [
       ...prev,
-      { id: mapId, shareId, name: name.trim(), type, createdAt },
+      { id: mapId, shareId, name: name.trim(), type, createdAt, viewEnabled: false, viewToken: null },
     ]);
   }, [userId]);
 
@@ -113,5 +115,12 @@ export function useMaps(userId: string) {
     setMaps(prev => prev.filter(m => m.id !== id));
   }, [userId]);
 
-  return { maps, createMap, joinMap, deleteMap, loading };
+  // 閲覧モードの state を更新（useViewSettings から呼ばれる）
+  const updateMapView = useCallback((mapId: string, viewEnabled: boolean, viewToken: string | null) => {
+    setMaps(prev => prev.map(m =>
+      m.id === mapId ? { ...m, viewEnabled, viewToken } : m
+    ));
+  }, []);
+
+  return { maps, createMap, joinMap, deleteMap, updateMapView, loading };
 }
