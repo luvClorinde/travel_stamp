@@ -10,8 +10,7 @@ interface Props {
 }
 
 function buildViewUrl(token: string): string {
-  const base = import.meta.env.BASE_URL;
-  return `${window.location.origin}${base}view/${token}`;
+  return `${window.location.origin}${import.meta.env.BASE_URL}#/view/${token}`;
 }
 
 export function ViewSettingsPanel({ map, onEnable, onDisable, onRegenerate, onClose }: Props) {
