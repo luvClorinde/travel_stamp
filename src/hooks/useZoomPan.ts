@@ -69,12 +69,13 @@ export function useZoomPan({
     let startX = 0, startY = 0, startTx = 0, startTy = 0;
 
     const onTouchStart = (e: TouchEvent) => {
-      e.preventDefault();
       if (e.touches.length === 2) {
+        e.preventDefault(); // ブラウザのピンチズームを抑制
         singleTouch = false;
         const t0 = e.touches[0], t1 = e.touches[1];
         lastDist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
       } else if (e.touches.length === 1) {
+        // 1本指は preventDefault しない → タップ時に click が発火する
         singleTouch = true;
         didDragRef.current = false;
         startX = e.touches[0].clientX;
@@ -115,7 +116,8 @@ export function useZoomPan({
     };
 
     const onTouchEnd = (e: TouchEvent) => {
-      e.preventDefault();
+      // ドラッグ後は click を抑制、タップ（drag なし）は click を通す
+      if (didDragRef.current) e.preventDefault();
       if (e.touches.length < 2) lastDist = 0;
       if (e.touches.length === 0) singleTouch = false;
     };
