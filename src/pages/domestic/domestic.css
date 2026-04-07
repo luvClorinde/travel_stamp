@@ -495,6 +495,12 @@
   border-radius: 6px;
 }
 
+/* ── ピン留めカード ───────────────────────────────────── */
+.record-item--pinned {
+  border-left: 3px solid #F59E0B;
+  padding-left: calc(12px - 3px);
+}
+
 /* ── 投稿アクションバー（編集・削除ボタン） ─────────────── */
 .record-actions {
   display: flex;
@@ -502,6 +508,50 @@
   justify-content: flex-end;
   gap: 8px;
   margin-bottom: 8px;
+}
+
+.btn-pin {
+  background: #F1F5F9;
+  border: 1px solid #E2E8F0;
+  color: #94A3B8;
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-family: inherit;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+  margin-right: auto;
+}
+
+.btn-pin::after {
+  content: 'ピン留め';
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.btn-pin:hover {
+  color: #F59E0B;
+  background: #FFFBEB;
+  border-color: #FDE68A;
+}
+
+.btn-pin--on {
+  color: #D97706;
+  background: #FFFBEB;
+  border-color: #FCD34D;
+}
+
+.btn-pin--on::after {
+  content: 'ピン中';
+}
+
+.btn-pin--on:hover {
+  color: #B45309;
+  background: #FEF3C7;
+  border-color: #F59E0B;
 }
 
 .btn-text-edit {

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { TravelData, TravelRecord, RecordType } from '../../../types';
 import type { DbPost } from '../../../lib/postApi';
-import { getPosts, addTextPost, addImagePost, removePostFromMap } from '../../../lib/postApi';
+import { getPosts, addTextPost, addImagePost, removePostFromMap, pinPost, unpinPost } from '../../../lib/postApi';
 
 function dbPostToRecord(post: DbPost): TravelRecord {
   const hasPhotos = post.photos.length > 0;
@@ -16,7 +16,17 @@ function dbPostToRecord(post: DbPost): TravelRecord {
     createdAt: post.created_at,
     mapIds: post.mapIds,
     authorId: post.author_id,
+    pinnedAt: post.pinned_at,
   };
+}
+
+function sortRecords(records: TravelRecord[]): TravelRecord[] {
+  return [...records].sort((a, b) => {
+    if (a.pinnedAt && b.pinnedAt) return a.pinnedAt.localeCompare(b.pinnedAt); // ピン留め順
+    if (a.pinnedAt) return -1;
+    if (b.pinnedAt) return 1;
+    return b.createdAt.localeCompare(a.createdAt); // 新しい順
+  });
 }
 
 function buildTravelData(posts: DbPost[]): TravelData {
@@ -26,6 +36,7 @@ function buildTravelData(posts: DbPost[]): TravelData {
     if (!data[loc]) data[loc] = [];
     data[loc].push(dbPostToRecord(post));
   }
+  for (const loc in data) data[loc] = sortRecords(data[loc]);
   return data;
 }
 
@@ -95,6 +106,25 @@ export function useTravel(mapId: string) {
     }
   }, [mapId, fetchPosts]);
 
+  const pinRecord = useCallback(async (locationId: string, recordId: string) => {
+    await pinPost(mapId, recordId);
+    setData(prev => {
+      const records = prev[locationId] ?? [];
+      const pinnedAt = new Date().toISOString();
+      const updated = records.map(r => r.id === recordId ? { ...r, pinnedAt } : r);
+      return { ...prev, [locationId]: sortRecords(updated) };
+    });
+  }, [mapId]);
+
+  const unpinRecord = useCallback(async (locationId: string, recordId: string) => {
+    await unpinPost(mapId, recordId);
+    setData(prev => {
+      const records = prev[locationId] ?? [];
+      const updated = records.map(r => r.id === recordId ? { ...r, pinnedAt: null } : r);
+      return { ...prev, [locationId]: sortRecords(updated) };
+    });
+  }, [mapId]);
+
   const deleteRecord = useCallback(async (locationId: string, recordId: string) => {
     await removePostFromMap(recordId, mapId);
     setData(prev => {
@@ -116,5 +146,5 @@ export function useTravel(mapId: string) {
 
   const visitedCount = Object.values(data).filter(r => r.length > 0).length;
 
-  return { addRecord, deleteRecord, getRecords, isVisited, visitedCount, loading, loadError, reloadPosts };
+  return { addRecord, deleteRecord, pinRecord, unpinRecord, getRecords, isVisited, visitedCount, loading, loadError, reloadPosts };
 }

@@ -16,6 +16,8 @@ interface Props {
   availableMaps: MapMeta[];
   onAdd: (type: RecordType, content: string, caption?: string, files?: File[], extraMapIds?: string[]) => Promise<void>;
   onDelete: (recordId: string) => void;
+  onPin: (recordId: string) => Promise<void>;
+  onUnpin: (recordId: string) => Promise<void>;
   onReload: () => Promise<void>;
   onClose: () => void;
 }
@@ -24,7 +26,7 @@ type Mode = 'list' | 'add-text' | 'add-image';
 
 export function PrefectureModal({
   prefectureName, records, currentMapId, currentUserId, availableMaps,
-  onAdd, onDelete, onReload, onClose,
+  onAdd, onDelete, onPin, onUnpin, onReload, onClose,
 }: Props) {
   const [mode, setMode] = useState<Mode>('list');
   const [text, setText] = useState('');
@@ -149,8 +151,19 @@ export function PrefectureModal({
                     const linked = linkedMapNames(r);
                     const isOwner = r.authorId === currentUserId;
                     return (
-                      <div key={r.id} className="record-item">
+                      <div key={r.id} className={`record-item${r.pinnedAt ? ' record-item--pinned' : ''}`}>
                         <div className="record-actions">
+                          <button
+                            className={`btn-pin${r.pinnedAt ? ' btn-pin--on' : ''}`}
+                            onClick={() => r.pinnedAt ? onUnpin(r.id) : onPin(r.id)}
+                            title={r.pinnedAt ? 'ピン留めを解除' : 'ピン留め'}
+                            aria-label={r.pinnedAt ? 'ピン留めを解除' : 'ピン留め'}
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill={r.pinnedAt ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                              <line x1="12" y1="17" x2="12" y2="22"/>
+                              <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/>
+                            </svg>
+                          </button>
                           {isOwner && (
                             <button
                               className="btn-text-edit"

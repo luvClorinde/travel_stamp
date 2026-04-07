@@ -15,7 +15,7 @@ interface Props {
 }
 
 export default function OverseasPage({ mapId, mapName, currentUserId, availableMaps, onBack }: Props) {
-  const { addRecord, deleteRecord, getRecords, isVisited, visitedCount, loading, loadError, reloadPosts } = useWorldTravel(mapId);
+  const { addRecord, deleteRecord, pinRecord, unpinRecord, getRecords, isVisited, visitedCount, loading, loadError, reloadPosts } = useWorldTravel(mapId);
   const [selected, setSelected] = useState<{ id: string; name: string } | null>(null);
 
   return (
@@ -55,6 +55,8 @@ export default function OverseasPage({ mapId, mapName, currentUserId, availableM
             addRecord(countryId, type, content, caption, files, extraMapIds)
           }
           onDelete={(recordId) => deleteRecord(selected.id, recordId)}
+          onPin={(recordId) => pinRecord(selected.id, recordId)}
+          onUnpin={(recordId) => unpinRecord(selected.id, recordId)}
           onReload={reloadPosts}
           onClose={() => setSelected(null)}
         />

@@ -12,6 +12,7 @@ export interface ViewPost {
   body: string;
   username: string | null;
   photos: ViewPhoto[];
+  pinned_at: string | null;
 }
 
 export interface ViewData {
@@ -29,6 +30,7 @@ export async function getPublicView(token: string): Promise<ViewData> {
     posts: (result.posts ?? []).map((p: ViewPost & { photos: unknown }) => ({
       ...p,
       photos: typeof p.photos === 'string' ? JSON.parse(p.photos) : (p.photos ?? []),
+      pinned_at: p.pinned_at ?? null,
     })),
   };
 }

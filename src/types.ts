@@ -24,6 +24,7 @@ export interface TravelRecord {
   createdAt: string;
   mapIds: string[];
   authorId: string;     // 投稿作成者の user_id
+  pinnedAt: string | null; // ピン留め日時（null = ピンなし）
 }
 
 export interface TravelData {

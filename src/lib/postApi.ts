@@ -13,6 +13,7 @@ export interface DbPost {
   body: string;
   mapIds: string[];
   photos: DbPhoto[];
+  pinned_at: string | null;
 }
 
 /** mapId に属する全投稿を取得（SECURITY DEFINER 関数経由） */
@@ -28,6 +29,7 @@ export async function getPosts(mapId: string): Promise<DbPost[]> {
     body: string;
     map_ids: unknown;
     photos: unknown;
+    pinned_at: unknown;
   }) => {
     const rawPhotos = typeof row.photos === 'string'
       ? (JSON.parse(row.photos) as { id: string; storage_path: string }[])
@@ -49,6 +51,7 @@ export async function getPosts(mapId: string): Promise<DbPost[]> {
       body: row.body,
       mapIds: rawMapIds,
       photos: rawPhotos.map(ph => ({ id: ph.id, storage_path: ph.storage_path })),
+      pinned_at: typeof row.pinned_at === 'string' ? row.pinned_at : null,
     };
   });
 }
@@ -176,6 +179,18 @@ export async function updatePhotoCaption(photoId: string, caption: string): Prom
     p_photo_id: photoId,
     p_caption:  caption,
   });
+  if (error) throw error;
+}
+
+/** 投稿をピン留めする */
+export async function pinPost(mapId: string, postId: string): Promise<void> {
+  const { error } = await supabase.rpc('pin_post', { p_map_id: mapId, p_post_id: postId });
+  if (error) throw error;
+}
+
+/** 投稿のピン留めを解除する */
+export async function unpinPost(mapId: string, postId: string): Promise<void> {
+  const { error } = await supabase.rpc('unpin_post', { p_map_id: mapId, p_post_id: postId });
   if (error) throw error;
 }
 

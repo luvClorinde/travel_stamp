@@ -14,7 +14,7 @@ interface Props {
 }
 
 export default function DomesticPage({ mapId, mapName, currentUserId, availableMaps, onBack }: Props) {
-  const { addRecord, deleteRecord, getRecords, isVisited, visitedCount, loading, loadError, reloadPosts } = useTravel(mapId);
+  const { addRecord, deleteRecord, pinRecord, unpinRecord, getRecords, isVisited, visitedCount, loading, loadError, reloadPosts } = useTravel(mapId);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const selectedName = selectedId ? (japaneseNames[selectedId] ?? selectedId) : null;
@@ -57,6 +57,8 @@ export default function DomesticPage({ mapId, mapName, currentUserId, availableM
             addRecord(selectedId, type, content, caption, files, extraMapIds)
           }
           onDelete={(recordId) => deleteRecord(selectedId, recordId)}
+          onPin={(recordId) => pinRecord(selectedId, recordId)}
+          onUnpin={(recordId) => unpinRecord(selectedId, recordId)}
           onReload={reloadPosts}
           onClose={() => setSelectedId(null)}
         />
