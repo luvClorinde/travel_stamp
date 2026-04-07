@@ -91,8 +91,8 @@
    広い時 → 高さ 75dvh（幅はアスペクト比で自動）
    狭い時 → 幅 100%（高さはアスペクト比で自動） */
 .page-layout--overseas .world-map-wrapper {
-  width: min(100%, calc(70dvh * 960 / 500));
-  aspect-ratio: 960 / 500;
+  width: calc(70dvh * 960 / 500);
+  height: 70dvh;
 }
 
 /* ── モーダル ─────────────────────────────────────── */
