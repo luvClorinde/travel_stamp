@@ -81,7 +81,7 @@ export function useWorldTravel(mapId: string) {
     if (type === 'text') {
       const id = await addTextPost(mapIds, '', countryId, content);
       const record: TravelRecord = {
-        id, type: 'text', content, createdAt: new Date().toISOString(), mapIds, authorId: '',
+        id, type: 'text', content, createdAt: new Date().toISOString(), mapIds, authorId: '', pinnedAt: null,
       };
       setData(prev => ({
         ...prev,
@@ -96,7 +96,7 @@ export function useWorldTravel(mapId: string) {
         console.error('投稿後の再取得に失敗:', fetchErr);
         const record: TravelRecord = {
           id: crypto.randomUUID(), type: 'image', content: '',
-          caption: content || undefined, createdAt: new Date().toISOString(), mapIds, authorId: '',
+          caption: content || undefined, createdAt: new Date().toISOString(), mapIds, authorId: '', pinnedAt: null,
         };
         setData(prev => ({
           ...prev,
