@@ -55,7 +55,7 @@ export function useMaps(userId: string) {
   }, [userId]);
 
   // create_map_with_member RPC でマップ作成＋メンバー追加をアトミックに実行
-  const createMap = useCallback(async (name: string, type: 'domestic' | 'international') => {
+  const createMap = useCallback(async (name: string, type: 'domestic' | 'international' = 'domestic') => {
     if (!userId) return;
     const mapId = crypto.randomUUID();
     const shareId = generateShareId();

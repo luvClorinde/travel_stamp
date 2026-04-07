@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import DomesticPage from './pages/domestic';
-import OverseasPage from './pages/overseas';
+import MapPage from './pages/MapPage';
 import { MapList } from './pages/MapList';
 import { LoginPage } from './pages/LoginPage';
 import { AccountSettings } from './pages/AccountSettings';
@@ -78,27 +77,15 @@ export default function App() {
     );
   }
 
-  const sameTypeMaps = maps.filter(m => m.type === selectedMap.type);
-
   return (
     <div className="app">
-      {selectedMap.type === 'domestic' ? (
-        <DomesticPage
-          mapId={selectedMap.id}
-          mapName={selectedMap.name}
-          currentUserId={user.id}
-          availableMaps={sameTypeMaps}
-          onBack={() => setSelectedMap(null)}
-        />
-      ) : (
-        <OverseasPage
-          mapId={selectedMap.id}
-          mapName={selectedMap.name}
-          currentUserId={user.id}
-          availableMaps={sameTypeMaps}
-          onBack={() => setSelectedMap(null)}
-        />
-      )}
+      <MapPage
+        mapId={selectedMap.id}
+        mapName={selectedMap.name}
+        currentUserId={user.id}
+        availableMaps={maps}
+        onBack={() => setSelectedMap(null)}
+      />
     </div>
   );
 }

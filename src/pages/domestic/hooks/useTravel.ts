@@ -146,5 +146,5 @@ export function useTravel(mapId: string) {
 
   const visitedCount = Object.values(data).filter(r => r.length > 0).length;
 
-  return { addRecord, deleteRecord, pinRecord, unpinRecord, getRecords, isVisited, visitedCount, loading, loadError, reloadPosts };
+  return { addRecord, deleteRecord, pinRecord, unpinRecord, getRecords, isVisited, visitedCount, loading, loadError, reloadPosts, data };
 }

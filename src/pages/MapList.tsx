@@ -5,7 +5,7 @@ import { CopyButton } from '../components/CopyButton';
 interface Props {
   maps: MapMeta[];
   displayName: string;
-  onCreate: (name: string, type: 'domestic' | 'international') => Promise<void>;
+  onCreate: (name: string) => Promise<void>;
   onJoin: (shareId: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onSelect: (map: MapMeta) => void;
@@ -22,7 +22,6 @@ export function MapList({ maps, displayName, onCreate, onJoin, onDelete, onSelec
 
   // 新規作成フォーム
   const [createName, setCreateName] = useState('');
-  const [createType, setCreateType] = useState<'domestic' | 'international'>('domestic');
   const [createError, setCreateError] = useState('');
 
   // 参加フォーム（share_id のみ）
@@ -37,9 +36,8 @@ export function MapList({ maps, displayName, onCreate, onJoin, onDelete, onSelec
     }
     setFormLoading(true);
     try {
-      await onCreate(createName.trim(), createType);
+      await onCreate(createName.trim());
       setCreateName('');
-      setCreateType('domestic');
       setFormMode('none');
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : '不明なエラーが発生しました';
@@ -112,7 +110,6 @@ return (
                     </span>
                   </div>
                   <div className="map-list-badge-group">
-                    <span className="map-list-type">{m.type === 'domestic' ? '国内' : '海外'}</span>
                     <span onClick={e => e.stopPropagation()}>
                       <button
                         className={`map-view-btn${m.viewEnabled ? ' map-view-btn--on' : ''}`}
@@ -165,26 +162,6 @@ return (
             {createError && (
               <p style={{ fontSize: 12, color: '#ef4444', margin: 0 }}>{createError}</p>
             )}
-            <div className="map-type-select">
-              <label className="map-type-option">
-                <input
-                  type="radio"
-                  value="domestic"
-                  checked={createType === 'domestic'}
-                  onChange={() => setCreateType('domestic')}
-                />
-                🗾 国内
-              </label>
-              <label className="map-type-option">
-                <input
-                  type="radio"
-                  value="international"
-                  checked={createType === 'international'}
-                  onChange={() => setCreateType('international')}
-                />
-                🌍 海外
-              </label>
-            </div>
             <div className="form-actions">
               <button className="btn btn-ghost" onClick={closeForm} disabled={formLoading}>キャンセル</button>
               <button className="btn btn-primary" onClick={handleCreate} disabled={!createName.trim() || formLoading}>

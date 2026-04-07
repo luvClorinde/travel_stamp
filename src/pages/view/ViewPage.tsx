@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react';
 import { getPublicView } from '../../lib/viewApi';
 import type { ViewData, ViewPost } from '../../lib/viewApi';
-import { JapanMap } from '../domestic/components/JapanMap';
+import { JapanMap, japaneseNames } from '../domestic/components/JapanMap';
 import { WorldMap } from '../overseas/components/WorldMap';
 import { ViewRecordModal } from './ViewRecordModal';
 import '../domestic/domestic.css';
 import '../overseas/overseas.css';
+
+const PREF_IDS = new Set(Object.keys(japaneseNames));
+
+type Tab = 'domestic' | 'international';
 
 interface Props {
   token: string;
@@ -15,6 +19,7 @@ export function ViewPage({ token }: Props) {
   const [data, setData] = useState<ViewData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState<Tab>('domestic');
   const [selected, setSelected] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
@@ -43,8 +48,6 @@ export function ViewPage({ token }: Props) {
     );
   }
 
-  const isDomestic = data.map.type === 'domestic';
-
   // location_id ごとに投稿をグループ化
   const postsByLocation: Record<string, ViewPost[]> = {};
   for (const post of data.posts) {
@@ -52,13 +55,17 @@ export function ViewPage({ token }: Props) {
     postsByLocation[post.location_id].push(post);
   }
 
-  const isVisited = (id: string) => (postsByLocation[id]?.length ?? 0) > 0;
+  const domesticVisited = Object.keys(postsByLocation).filter(id => PREF_IDS.has(id)).length;
+  const overseasVisited = Object.keys(postsByLocation).filter(id => !PREF_IDS.has(id)).length;
+
+  const domesticIsVisited = (id: string) => PREF_IDS.has(id) && (postsByLocation[id]?.length ?? 0) > 0;
+  const overseasIsVisited = (id: string) => !PREF_IDS.has(id) && (postsByLocation[id]?.length ?? 0) > 0;
 
   const selectedPosts = selected ? (postsByLocation[selected.id] ?? []) : [];
 
   return (
     <div className="app">
-      <div className="page-layout" style={{ position: 'relative' }}>
+      <div className={`page-layout${tab === 'international' ? ' page-layout--overseas' : ''}`} style={{ position: 'relative' }}>
 
         {/* 閲覧専用バナー */}
         <div className="view-banner">
@@ -67,37 +74,51 @@ export function ViewPage({ token }: Props) {
 
         <header className="app-header">
           <h1 className="app-title">{data.map.name}</h1>
-          <p className="app-subtitle">
-            {isDomestic ? '都道府県をクリックして記録を見る' : '国をクリックして記録を見る'}
-          </p>
-          <div className="visited-counter">
-            <span className="counter-num">{Object.keys(postsByLocation).length}</span>
-            {isDomestic ? (
-              <>
-                <span className="counter-sep"> / </span>
-                <span className="counter-total">47</span>
-                <span className="counter-label"> 都道府県 訪問済み</span>
-              </>
-            ) : (
+
+          <nav className="app-nav">
+            <button
+              className={`nav-tab${tab === 'domestic' ? ' active' : ''}`}
+              onClick={() => { setTab('domestic'); setSelected(null); }}
+            >
+              🗾 国内
+            </button>
+            <button
+              className={`nav-tab${tab === 'international' ? ' active' : ''}`}
+              onClick={() => { setTab('international'); setSelected(null); }}
+            >
+              🌍 海外
+            </button>
+          </nav>
+
+          {tab === 'domestic' ? (
+            <div className="visited-counter">
+              <span className="counter-num">{domesticVisited}</span>
+              <span className="counter-sep"> / </span>
+              <span className="counter-total">47</span>
+              <span className="counter-label"> 都道府県 訪問済み</span>
+            </div>
+          ) : (
+            <div className="visited-counter">
+              <span className="counter-num">{overseasVisited}</span>
               <span className="counter-label"> カ国 訪問済み</span>
-            )}
-          </div>
+            </div>
+          )}
         </header>
 
-        <main className={`app-main${!isDomestic ? ' page-layout--overseas' : ''}`}>
-          {isDomestic ? (
+        <main className="app-main">
+          {tab === 'domestic' ? (
             <JapanMap
-              isVisited={isVisited}
+              isVisited={domesticIsVisited}
               onSelect={id => {
-                if (!isVisited(id)) return;
-                setSelected({ id, name: id });
+                if (!domesticIsVisited(id)) return;
+                setSelected({ id, name: japaneseNames[id] ?? id });
               }}
             />
           ) : (
             <WorldMap
-              isVisited={isVisited}
+              isVisited={overseasIsVisited}
               onCountryClick={(id, name) => {
-                if (!isVisited(id)) return;
+                if (!overseasIsVisited(id)) return;
                 setSelected({ id, name });
               }}
             />
